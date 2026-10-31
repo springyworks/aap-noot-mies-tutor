@@ -151,6 +151,7 @@ export interface TelemetryDumpPayload {
   telemetryPointCount: number;
   telemetry: TelemetryPoint[];
   complexity?: WordComplexity;
+  figureFeedback?: FigureFeedback[];
   usabilityLaws?: UsabilitySummary & { recentTrials: UsabilityTrial[] };
 }
 
@@ -732,8 +733,185 @@ function computeDerivedHardData(
 // BESPOKE EVOLVING LINE-ART ENGINE (4 Developmental Stages + Golden Cell Bloom)
 // ============================================================================
 
+// ============================================================================
+// GENERATIVE TALKING CREATURES (procedural SVG, offline, seeded: same seed = same creature)
+// New seed = new creature. The mouth only moves while its word is being spoken; otherwise it stands still.
+// ============================================================================
+
+export interface FigureFeedback {
+  word: string;
+  verdict: 'wrong' | 'nice' | 'another';
+  seedBefore: number | null;
+  seedAfter: number | null;
+  at: string;
+  complexity: WordComplexity;
+}
+
+const mulberry32 = (seed: number) => {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const hashWord = (s: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+};
+
+const GeneratedCreature: React.FC<{ word: string; seed: number; talking: boolean; tick: number; lit: number }> = ({
+  word,
+  seed,
+  talking,
+  tick,
+  lit
+}) => {
+  const rnd = mulberry32((seed ^ hashWord(word)) >>> 0);
+  const hue = Math.floor(rnd() * 360);
+  const body = `hsl(${hue} ${60 + Math.round(rnd() * 20)}% ${58 + Math.round(rnd() * 8)}%)`;
+  const belly = `hsl(${(hue + 22) % 360} 75% 88%)`;
+  const dark = `hsl(${hue} 45% 20%)`;
+  const accent = `hsl(${(hue + 160) % 360} 72% 62%)`;
+  const cheekCol = `hsl(${(hue + 330) % 360} 85% 74%)`;
+  const shape = Math.floor(rnd() * 4);
+  const rx = [34, 28, 40, 32][shape];
+  const ry = [32, 40, 28, 36][shape];
+  const earType = Math.floor(rnd() * 4); // 0 none, 1 round, 2 pointy, 3 long
+  const hasAntenna = rnd() < 0.3;
+  const hasTail = rnd() < 0.55;
+  const cyclops = rnd() < 0.15;
+  const eyeR = 5 + rnd() * 3.5;
+  const eyeGap = 11 + rnd() * 5;
+  const mouthW = 10 + rnd() * 6;
+  const hasCheeks = rnd() < 0.65;
+  const spots = rnd() < 0.4 ? 3 + Math.floor(rnd() * 3) : 0;
+  const spotXY: [number, number, number][] = [];
+  for (let i = 0; i < spots; i++) spotXY.push([(rnd() - 0.5) * rx * 1.1, -ry * 0.75 + rnd() * ry * 0.35, 2 + rnd() * 3]);
+
+  // Mouth opening: two mixed sines look like syllables. Zero when silent -> the creature stands perfectly still.
+  const open = talking ? Math.min(1, 0.12 + 0.88 * Math.abs(Math.sin(tick * 6) * 0.7 + Math.sin(tick * 9.7 + seed) * 0.3)) : 0;
+  const eyeY = -ry * 0.22;
+  const mouthY = ry * 0.26;
+
+  return (
+    <svg viewBox="0 0 200 136" className="w-full h-full pointer-events-none select-none overflow-hidden" aria-label={word}>
+      <g transform="translate(100, 64)">
+        {lit > 0.05 && <ellipse cx="0" cy="0" rx={rx + 20} ry={ry + 16} fill={accent} opacity={0.14 + lit * 0.18} />}
+        <ellipse cx="0" cy={ry + 6} rx={rx * 0.8} ry="5" fill="#000" opacity="0.28" />
+
+        {hasTail && (
+          <path
+            d={`M ${rx * 0.8} ${ry * 0.35} C ${rx + 22} ${ry * 0.1}, ${rx + 16} ${-ry * 0.5}, ${rx + 4} ${-ry * 0.45}`}
+            fill="none"
+            stroke={dark}
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
+        )}
+        {hasTail && (
+          <path
+            d={`M ${rx * 0.8} ${ry * 0.35} C ${rx + 22} ${ry * 0.1}, ${rx + 16} ${-ry * 0.5}, ${rx + 4} ${-ry * 0.45}`}
+            fill="none"
+            stroke={body}
+            strokeWidth="3.4"
+            strokeLinecap="round"
+          />
+        )}
+
+        {earType === 1 && (
+          <>
+            <circle cx={-rx * 0.62} cy={-ry * 0.82} r="10" fill={body} stroke={dark} strokeWidth="2" />
+            <circle cx={rx * 0.62} cy={-ry * 0.82} r="10" fill={body} stroke={dark} strokeWidth="2" />
+            <circle cx={-rx * 0.62} cy={-ry * 0.82} r="5" fill={cheekCol} opacity="0.8" />
+            <circle cx={rx * 0.62} cy={-ry * 0.82} r="5" fill={cheekCol} opacity="0.8" />
+          </>
+        )}
+        {earType === 2 && (
+          <>
+            <path d={`M ${-rx * 0.85} ${-ry * 0.5} L ${-rx * 0.55} ${-ry - 14} L ${-rx * 0.15} ${-ry * 0.85} Z`} fill={body} stroke={dark} strokeWidth="2" strokeLinejoin="round" />
+            <path d={`M ${rx * 0.85} ${-ry * 0.5} L ${rx * 0.55} ${-ry - 14} L ${rx * 0.15} ${-ry * 0.85} Z`} fill={body} stroke={dark} strokeWidth="2" strokeLinejoin="round" />
+          </>
+        )}
+        {earType === 3 && (
+          <>
+            <ellipse cx={-rx * 0.5} cy={-ry - 8} rx="7" ry="17" fill={body} stroke={dark} strokeWidth="2" />
+            <ellipse cx={rx * 0.5} cy={-ry - 8} rx="7" ry="17" fill={body} stroke={dark} strokeWidth="2" />
+            <ellipse cx={-rx * 0.5} cy={-ry - 6} rx="3.2" ry="11" fill={cheekCol} opacity="0.75" />
+            <ellipse cx={rx * 0.5} cy={-ry - 6} rx="3.2" ry="11" fill={cheekCol} opacity="0.75" />
+          </>
+        )}
+        {hasAntenna && (
+          <>
+            <line x1="0" y1={-ry + 2} x2="0" y2={-ry - 16} stroke={dark} strokeWidth="2.4" strokeLinecap="round" />
+            <circle cx="0" cy={-ry - 18} r="4.2" fill={accent} stroke={dark} strokeWidth="1.6" />
+          </>
+        )}
+
+        {/* feet */}
+        <ellipse cx={-rx * 0.4} cy={ry - 1} rx="9" ry="5" fill={body} stroke={dark} strokeWidth="2" />
+        <ellipse cx={rx * 0.4} cy={ry - 1} rx="9" ry="5" fill={body} stroke={dark} strokeWidth="2" />
+
+        {/* body + belly + spots */}
+        <ellipse cx="0" cy="0" rx={rx} ry={ry} fill={body} stroke={dark} strokeWidth="2.4" />
+        <ellipse cx="0" cy={ry * 0.32} rx={rx * 0.62} ry={ry * 0.56} fill={belly} opacity="0.88" />
+        {spotXY.map(([sx, sy, sr], i) => (
+          <circle key={i} cx={sx} cy={sy} r={sr} fill={accent} opacity="0.55" />
+        ))}
+
+        {/* eyes */}
+        {cyclops ? (
+          <>
+            <circle cx="0" cy={eyeY} r={eyeR * 1.5} fill="#fff" stroke={dark} strokeWidth="1.8" />
+            <circle cx="0" cy={eyeY + 1} r={eyeR * 0.78} fill={dark} />
+            <circle cx={-eyeR * 0.28} cy={eyeY - eyeR * 0.2} r={eyeR * 0.26} fill="#fff" />
+          </>
+        ) : (
+          <>
+            {[-1, 1].map(side => (
+              <g key={side}>
+                <circle cx={side * eyeGap} cy={eyeY} r={eyeR} fill="#fff" stroke={dark} strokeWidth="1.8" />
+                <circle cx={side * eyeGap + 0.8} cy={eyeY + 1} r={eyeR * 0.52} fill={dark} />
+                <circle cx={side * eyeGap - eyeR * 0.18} cy={eyeY - eyeR * 0.14} r={eyeR * 0.2} fill="#fff" />
+              </g>
+            ))}
+          </>
+        )}
+
+        {hasCheeks && (
+          <>
+            <circle cx={-eyeGap - 5} cy={eyeY + eyeR + 5} r="4.4" fill={cheekCol} opacity="0.7" />
+            <circle cx={eyeGap + 5} cy={eyeY + eyeR + 5} r="4.4" fill={cheekCol} opacity="0.7" />
+          </>
+        )}
+
+        {/* mouth: talking = opens and closes in time with the voice; silent = calm smile */}
+        {open > 0.04 ? (
+          <g>
+            <ellipse cx="0" cy={mouthY + open * 2} rx={mouthW / 2} ry={1.6 + open * 8.5} fill={dark} />
+            <ellipse cx="0" cy={mouthY + open * 2 + open * 5} rx={mouthW / 3.2} ry={Math.max(0.6, open * 3)} fill={cheekCol} opacity="0.9" />
+          </g>
+        ) : (
+          <path
+            d={`M ${-mouthW / 2} ${mouthY} Q 0 ${mouthY + 7} ${mouthW / 2} ${mouthY}`}
+            fill="none"
+            stroke={dark}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+        )}
+      </g>
+    </svg>
+  );
+};
+
 interface CellSvgUnderlayProps {
   word: string;
+  genSeed?: number;           // when set: render the generative talking creature instead of the Leesplankje figure
+  talking?: boolean;          // this cell's word is being spoken right now
   aliveness: number;          // 0.00 to 1.00 time-based awakening factor
   hoverDwellMs: number;       // How long pointer has hovered in THIS cell
   isHovered: boolean;         // Currently hovered by mouse/finger
@@ -746,6 +924,8 @@ interface CellSvgUnderlayProps {
 
 const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   word,
+  genSeed,
+  talking = false,
   aliveness,
   hoverDwellMs,
   isHovered,
@@ -773,6 +953,11 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   const motionAmp = Math.min(1.6, Math.max(0.2, (effectiveAliveness - 0.10) + goldenEvolution * 0.7));
 
   const w = word.toLowerCase();
+
+  // GENERATIVE TALKING CREATURE (no hooks above this point, so an early return is safe)
+  if (genSeed !== undefined) {
+    return <GeneratedCreature word={w} seed={genSeed} talking={talking} tick={animTick} lit={isTarget ? goldenEvolution : 0} />;
+  }
 
   // Map all 17 classic Leesplankje words + L0 single letters + L1-L5 vocabulary to a Leesplankje WebP figure!
   const LEESPLANK_WORD_ALIASES: Record<string, string> = {
@@ -2408,6 +2593,14 @@ export default function RTTutor() {
   const [usabilityStats, setUsabilityStats] = useState<UsabilitySummary>(() => summarizeUsability([]));
   const [maatjeOpen, setMaatjeOpen] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth >= 1700);
   const [maatjeHistory, setMaatjeHistory] = useState<string[]>([]);
+  // Generative talking figures: per-word seed overrides (set by the tiny [wrong]/[nice]/[another] buttons)
+  const [genFigures, setGenFigures] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem('anm_gen_figs') || '{}') as Record<string, number>; } catch { return {}; }
+  });
+  const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+  const figureFeedbackRef = useRef<FigureFeedback[]>((() => {
+    try { return JSON.parse(localStorage.getItem('anm_fig_feedback') || '[]') as FigureFeedback[]; } catch { return []; }
+  })());
 
   // Usability Research Pinhole Spotlight State
   const [pinholeEnabled, setPinholeEnabled] = useState<boolean>(SHARED_VIEW.pin ?? false);
@@ -2696,7 +2889,7 @@ export default function RTTutor() {
 
   const speakText = useCallback((
     text: string,
-    options?: { forceLang?: LanguageCode; emotionOverride?: TutorEmotion; bypassSilence?: boolean; cancelFirst?: boolean }
+    options?: { forceLang?: LanguageCode; emotionOverride?: TutorEmotion; bypassSilence?: boolean; cancelFirst?: boolean; speakKey?: string }
   ) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     if (isVoiceSilent && !options?.bypassSilence) return;
@@ -2723,6 +2916,18 @@ export default function RTTutor() {
 
       utterance.pitch = Math.min(1.25, Math.max(0.85, emoMeta.pitchMod + (Math.random() * 0.06 - 0.03)));
       utterance.rate = emoMeta.rateMod;
+
+      // Talking figures: tell the cell whose word is being spoken so its generated creature can move its mouth.
+      const key = options?.speakKey;
+      if (key) {
+        const stop = () => setSpeakingKey(prev => (prev === key ? null : prev));
+        utterance.onstart = () => setSpeakingKey(key);
+        utterance.onend = stop;
+        utterance.onerror = stop;
+        // Some mobile WebViews never fire speech events: start now and stop after an estimate.
+        setSpeakingKey(key);
+        setTimeout(stop, Math.min(9000, 900 + spokenString.length * 110));
+      }
       window.speechSynthesis.speak(utterance);
     } catch (e) {
       console.warn('Speech synthesis error:', e);
@@ -2730,7 +2935,7 @@ export default function RTTutor() {
   }, [isVoiceSilent, tutorEmotion, language, selectBestVoice]);
 
   const speakWord = useCallback((word: string, forceLang?: LanguageCode) => {
-    speakText(word, { forceLang, cancelFirst: true });
+    speakText(word, { forceLang, cancelFirst: true, speakKey: word.toLowerCase() });
   }, [speakText]);
 
   const speakVariedFromArray = useCallback((arr: string[], kind: 'praise' | 'idle', emotionOverride?: TutorEmotion) => {
@@ -3258,6 +3463,7 @@ export default function RTTutor() {
         telemetryPointCount: telemetryData.current.length,
         telemetry: telemetryData.current,
         complexity,
+        figureFeedback: figureFeedbackRef.current.slice(-50),
         usabilityLaws: { ...summarizeUsability(usabilityTrialsRef.current), recentTrials: usabilityTrialsRef.current.slice(-20) }
       };
     }
@@ -4325,6 +4531,46 @@ export default function RTTutor() {
     );
   };
 
+  const giveFigureFeedback = (word: string, verdict: FigureFeedback['verdict']) => {
+    initAudio();
+    lastInteraction.current = Date.now();
+    const key = word.toLowerCase();
+    const before = genFigures[key] ?? null;
+    let after: number | null = before;
+    const nl = language === 'nl';
+
+    if (verdict === 'wrong' || verdict === 'another') {
+      // brand-new creature for this cell (never the same seed twice in a row)
+      do {
+        after = 1 + Math.floor(Math.random() * 999999999);
+      } while (after === before);
+      const next = { ...genFigures, [key]: after };
+      setGenFigures(next);
+      try { localStorage.setItem('anm_gen_figs', JSON.stringify(next)); } catch { /* ignore */ }
+      setShareToast(verdict === 'wrong'
+        ? (nl ? '✗ Oeps, ik maak een nieuw plaatje!' : '✗ Oops, making a new picture!')
+        : (nl ? '↻ Een ander plaatje!' : '↻ Another picture!'));
+      // let the fresh creature say its word right away so you see it talk
+      setTimeout(() => speakWord(word, curriculumMode === 'aapnootmies' ? 'nl' : undefined), 250);
+    } else {
+      setShareToast(nl ? '♥ Mooi! Fijn dat je dit plaatje leuk vindt.' : '♥ Lovely! Glad you like this picture.');
+      speakWord(word, curriculumMode === 'aapnootmies' ? 'nl' : undefined);
+    }
+    setTimeout(() => setShareToast(null), 2200);
+
+    const entry: FigureFeedback = {
+      word: key,
+      verdict,
+      seedBefore: before,
+      seedAfter: after,
+      at: new Date().toISOString(),
+      complexity
+    };
+    figureFeedbackRef.current = [...figureFeedbackRef.current, entry].slice(-300);
+    try { localStorage.setItem('anm_fig_feedback', JSON.stringify(figureFeedbackRef.current)); } catch { /* ignore */ }
+    logTimelineEvent('figure_feedback', { ...entry });
+  };
+
   const renderWordWithSmartColors = (word: string, targetWord?: string) => {
     // Thin line under every double sound (oe, ie, eu, ui, ei, ij, aa, ee, oo, uu, sch, ng) - as in current kindergarten practice
     const dMask = word.length > 1 ? digraphMask(word) : [];
@@ -4424,6 +4670,7 @@ export default function RTTutor() {
       onTouchMove={handleInteractionEvent}
       onTouchStart={handleInteractionEvent}
     >
+      <style>{`@keyframes figIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`}</style>
       {/* ==================================================================== */}
       {/* FOCUS PINHOLE OVERLAY LAYER (Usability & Eye-Tracking Research)      */}
       {/* ==================================================================== */}
@@ -4840,17 +5087,56 @@ export default function RTTutor() {
               >
                 {/* TOP COMPARTMENT: Dedicated SVG + Alpha-WebP Aap-Noot-Mies + 1960s Motion-Lamp Animation */}
                 <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-slate-800/90">
-                  <CellSvgUnderlay
-                    word={word}
-                    aliveness={aliveness}
-                    hoverDwellMs={hoverDwellMs}
-                    isHovered={isHovered}
-                    isCandidateMatch={isCandidateMatch}
-                    isTarget={isExactTarget}
-                    level={level}
-                    animTick={animTick + i * 0.9}
-                    anmFigureMode={anmFigureMode}
-                  />
+                  <div
+                    key={`fig-${word}-${genFigures[word.toLowerCase()] ?? 'orig'}`}
+                    className="w-full h-full"
+                    style={{ animation: 'figIn 0.4s ease-out' }}
+                  >
+                    <CellSvgUnderlay
+                      word={word}
+                      genSeed={genFigures[word.toLowerCase()]}
+                      talking={speakingKey === word.toLowerCase()}
+                      aliveness={aliveness}
+                      hoverDwellMs={hoverDwellMs}
+                      isHovered={isHovered}
+                      isCandidateMatch={isCandidateMatch}
+                      isTarget={isExactTarget}
+                      level={level}
+                      animTick={animTick + i * 0.9}
+                      anmFigureMode={anmFigureMode}
+                    />
+                  </div>
+
+                  {/* TINY FEEDBACK BUTTONS: small to look at (18px), but a 30px invisible touch area around each so
+                      fingers on phones can still hit them. They are <span role="button"> because a <button> inside the
+                      cell <button> is invalid HTML; stopPropagation keeps the tap from also picking the word. */}
+                  <div className="absolute right-0 bottom-0 z-20 flex items-center">
+                    {([
+                      ['wrong', '✗', language === 'nl' ? 'Klopt niet' : 'Not right', 'text-rose-300'],
+                      ['nice', '♥', language === 'nl' ? 'Mooi' : 'Nice', 'text-emerald-300'],
+                      ['another', '↻', language === 'nl' ? 'Ander plaatje' : 'Another picture', 'text-sky-300']
+                    ] as const).map(([verdict, glyph, label, tone]) => (
+                      <span
+                        key={verdict}
+                        role="button"
+                        aria-label={label}
+                        title={label}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          ev.preventDefault();
+                          giveFigureFeedback(word, verdict);
+                        }}
+                        className="flex items-center justify-center w-[30px] h-[30px] cursor-pointer select-none"
+                      >
+                        <span
+                          className={`w-[18px] h-[18px] rounded-full bg-slate-950/75 border border-slate-600/70 text-[10px] leading-none flex items-center justify-center font-bold opacity-55 group-hover:opacity-100 active:opacity-100 active:scale-125 transition ${tone}`}
+                        >
+                          {glyph}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
 
                   {/* 2D Kinetic Target Corner Reticles */}
                   {kineticMode && (

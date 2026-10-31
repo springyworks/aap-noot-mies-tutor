@@ -770,8 +770,84 @@
       }
     };
   }
+  var mulberry32 = (seed) => {
+    let a = seed | 0;
+    return () => {
+      a = a + 1831565813 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  };
+  var hashWord = (s) => {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    return h >>> 0;
+  };
+  var GeneratedCreature = ({
+    word,
+    seed,
+    talking,
+    tick,
+    lit
+  }) => {
+    const rnd = mulberry32((seed ^ hashWord(word)) >>> 0);
+    const hue = Math.floor(rnd() * 360);
+    const body = `hsl(${hue} ${60 + Math.round(rnd() * 20)}% ${58 + Math.round(rnd() * 8)}%)`;
+    const belly = `hsl(${(hue + 22) % 360} 75% 88%)`;
+    const dark = `hsl(${hue} 45% 20%)`;
+    const accent = `hsl(${(hue + 160) % 360} 72% 62%)`;
+    const cheekCol = `hsl(${(hue + 330) % 360} 85% 74%)`;
+    const shape = Math.floor(rnd() * 4);
+    const rx = [34, 28, 40, 32][shape];
+    const ry = [32, 40, 28, 36][shape];
+    const earType = Math.floor(rnd() * 4);
+    const hasAntenna = rnd() < 0.3;
+    const hasTail = rnd() < 0.55;
+    const cyclops = rnd() < 0.15;
+    const eyeR = 5 + rnd() * 3.5;
+    const eyeGap = 11 + rnd() * 5;
+    const mouthW = 10 + rnd() * 6;
+    const hasCheeks = rnd() < 0.65;
+    const spots = rnd() < 0.4 ? 3 + Math.floor(rnd() * 3) : 0;
+    const spotXY = [];
+    for (let i = 0; i < spots; i++) spotXY.push([(rnd() - 0.5) * rx * 1.1, -ry * 0.75 + rnd() * ry * 0.35, 2 + rnd() * 3]);
+    const open = talking ? Math.min(1, 0.12 + 0.88 * Math.abs(Math.sin(tick * 6) * 0.7 + Math.sin(tick * 9.7 + seed) * 0.3)) : 0;
+    const eyeY = -ry * 0.22;
+    const mouthY = ry * 0.26;
+    return /* @__PURE__ */ react_shim_default.createElement("svg", { viewBox: "0 0 200 136", className: "w-full h-full pointer-events-none select-none overflow-hidden", "aria-label": word }, /* @__PURE__ */ react_shim_default.createElement("g", { transform: "translate(100, 64)" }, lit > 0.05 && /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "0", rx: rx + 20, ry: ry + 16, fill: accent, opacity: 0.14 + lit * 0.18 }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: ry + 6, rx: rx * 0.8, ry: "5", fill: "#000", opacity: "0.28" }), hasTail && /* @__PURE__ */ react_shim_default.createElement(
+      "path",
+      {
+        d: `M ${rx * 0.8} ${ry * 0.35} C ${rx + 22} ${ry * 0.1}, ${rx + 16} ${-ry * 0.5}, ${rx + 4} ${-ry * 0.45}`,
+        fill: "none",
+        stroke: dark,
+        strokeWidth: "6",
+        strokeLinecap: "round"
+      }
+    ), hasTail && /* @__PURE__ */ react_shim_default.createElement(
+      "path",
+      {
+        d: `M ${rx * 0.8} ${ry * 0.35} C ${rx + 22} ${ry * 0.1}, ${rx + 16} ${-ry * 0.5}, ${rx + 4} ${-ry * 0.45}`,
+        fill: "none",
+        stroke: body,
+        strokeWidth: "3.4",
+        strokeLinecap: "round"
+      }
+    ), earType === 1 && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -rx * 0.62, cy: -ry * 0.82, r: "10", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: rx * 0.62, cy: -ry * 0.82, r: "10", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -rx * 0.62, cy: -ry * 0.82, r: "5", fill: cheekCol, opacity: "0.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: rx * 0.62, cy: -ry * 0.82, r: "5", fill: cheekCol, opacity: "0.8" })), earType === 2 && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("path", { d: `M ${-rx * 0.85} ${-ry * 0.5} L ${-rx * 0.55} ${-ry - 14} L ${-rx * 0.15} ${-ry * 0.85} Z`, fill: body, stroke: dark, strokeWidth: "2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: `M ${rx * 0.85} ${-ry * 0.5} L ${rx * 0.55} ${-ry - 14} L ${rx * 0.15} ${-ry * 0.85} Z`, fill: body, stroke: dark, strokeWidth: "2", strokeLinejoin: "round" })), earType === 3 && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: -rx * 0.5, cy: -ry - 8, rx: "7", ry: "17", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: rx * 0.5, cy: -ry - 8, rx: "7", ry: "17", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: -rx * 0.5, cy: -ry - 6, rx: "3.2", ry: "11", fill: cheekCol, opacity: "0.75" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: rx * 0.5, cy: -ry - 6, rx: "3.2", ry: "11", fill: cheekCol, opacity: "0.75" })), hasAntenna && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("line", { x1: "0", y1: -ry + 2, x2: "0", y2: -ry - 16, stroke: dark, strokeWidth: "2.4", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: -ry - 18, r: "4.2", fill: accent, stroke: dark, strokeWidth: "1.6" })), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: -rx * 0.4, cy: ry - 1, rx: "9", ry: "5", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: rx * 0.4, cy: ry - 1, rx: "9", ry: "5", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "0", rx, ry, fill: body, stroke: dark, strokeWidth: "2.4" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: ry * 0.32, rx: rx * 0.62, ry: ry * 0.56, fill: belly, opacity: "0.88" }), spotXY.map(([sx, sy, sr], i) => /* @__PURE__ */ react_shim_default.createElement("circle", { key: i, cx: sx, cy: sy, r: sr, fill: accent, opacity: "0.55" })), cyclops ? /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: eyeY, r: eyeR * 1.5, fill: "#fff", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: eyeY + 1, r: eyeR * 0.78, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -eyeR * 0.28, cy: eyeY - eyeR * 0.2, r: eyeR * 0.26, fill: "#fff" })) : /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, [-1, 1].map((side) => /* @__PURE__ */ react_shim_default.createElement("g", { key: side }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: side * eyeGap, cy: eyeY, r: eyeR, fill: "#fff", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: side * eyeGap + 0.8, cy: eyeY + 1, r: eyeR * 0.52, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: side * eyeGap - eyeR * 0.18, cy: eyeY - eyeR * 0.14, r: eyeR * 0.2, fill: "#fff" })))), hasCheeks && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -eyeGap - 5, cy: eyeY + eyeR + 5, r: "4.4", fill: cheekCol, opacity: "0.7" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: eyeGap + 5, cy: eyeY + eyeR + 5, r: "4.4", fill: cheekCol, opacity: "0.7" })), open > 0.04 ? /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: mouthY + open * 2, rx: mouthW / 2, ry: 1.6 + open * 8.5, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: mouthY + open * 2 + open * 5, rx: mouthW / 3.2, ry: Math.max(0.6, open * 3), fill: cheekCol, opacity: "0.9" })) : /* @__PURE__ */ react_shim_default.createElement(
+      "path",
+      {
+        d: `M ${-mouthW / 2} ${mouthY} Q 0 ${mouthY + 7} ${mouthW / 2} ${mouthY}`,
+        fill: "none",
+        stroke: dark,
+        strokeWidth: "2.4",
+        strokeLinecap: "round"
+      }
+    )));
+  };
   var CellSvgUnderlay = ({
     word,
+    genSeed,
+    talking = false,
     aliveness,
     hoverDwellMs,
     isHovered,
@@ -790,6 +866,9 @@
     const fillProgress = Math.min(1, Math.max(0.25, (effectiveAliveness - 0.15) / 0.5));
     const motionAmp = Math.min(1.6, Math.max(0.2, effectiveAliveness - 0.1 + goldenEvolution * 0.7));
     const w = word.toLowerCase();
+    if (genSeed !== void 0) {
+      return /* @__PURE__ */ react_shim_default.createElement(GeneratedCreature, { word: w, seed: genSeed, talking, tick: animTick, lit: isTarget ? goldenEvolution : 0 });
+    }
     const LEESPLANK_WORD_ALIASES = {
       a: "aap",
       b: "bok",
@@ -1916,6 +1995,21 @@
     const [usabilityStats, setUsabilityStats] = useState(() => summarizeUsability([]));
     const [maatjeOpen, setMaatjeOpen] = useState(typeof window !== "undefined" && window.innerWidth >= 1700);
     const [maatjeHistory, setMaatjeHistory] = useState([]);
+    const [genFigures, setGenFigures] = useState(() => {
+      try {
+        return JSON.parse(localStorage.getItem("anm_gen_figs") || "{}");
+      } catch {
+        return {};
+      }
+    });
+    const [speakingKey, setSpeakingKey] = useState(null);
+    const figureFeedbackRef = useRef((() => {
+      try {
+        return JSON.parse(localStorage.getItem("anm_fig_feedback") || "[]");
+      } catch {
+        return [];
+      }
+    })());
     const [pinholeEnabled, setPinholeEnabled] = useState(SHARED_VIEW.pin ?? false);
     const [pointerPos, setPointerPos] = useState({
       x: typeof window !== "undefined" ? Math.round(window.innerWidth / 2) : 500,
@@ -2194,13 +2288,22 @@
         }
         utterance.pitch = Math.min(1.25, Math.max(0.85, emoMeta.pitchMod + (Math.random() * 0.06 - 0.03)));
         utterance.rate = emoMeta.rateMod;
+        const key = options?.speakKey;
+        if (key) {
+          const stop = () => setSpeakingKey((prev) => prev === key ? null : prev);
+          utterance.onstart = () => setSpeakingKey(key);
+          utterance.onend = stop;
+          utterance.onerror = stop;
+          setSpeakingKey(key);
+          setTimeout(stop, Math.min(9e3, 900 + spokenString.length * 110));
+        }
         window.speechSynthesis.speak(utterance);
       } catch (e) {
         console.warn("Speech synthesis error:", e);
       }
     }, [isVoiceSilent, tutorEmotion, language, selectBestVoice]);
     const speakWord = useCallback((word, forceLang) => {
-      speakText(word, { forceLang, cancelFirst: true });
+      speakText(word, { forceLang, cancelFirst: true, speakKey: word.toLowerCase() });
     }, [speakText]);
     const speakVariedFromArray = useCallback((arr, kind, emotionOverride) => {
       if (!arr || arr.length === 0) return;
@@ -2602,6 +2705,7 @@
           telemetryPointCount: telemetryData.current.length,
           telemetry: telemetryData.current,
           complexity,
+          figureFeedback: figureFeedbackRef.current.slice(-50),
           usabilityLaws: { ...summarizeUsability(usabilityTrialsRef.current), recentTrials: usabilityTrialsRef.current.slice(-20) }
         };
       }
@@ -3486,6 +3590,45 @@
         );
       })), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[10px] text-slate-400 mt-1 leading-snug" }, nl ? "Hulp (as B: \u{1F4AC} uitleg) en taal staan los hiervan. Een dun streepje onder twee letters = \xE9\xE9n klank." : "Support (axis B: \u{1F4AC} guidance) and language are independent of this. A thin line under two letters = one sound.")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-950/70 border border-slate-800 p-2 font-mono text-[10px] leading-relaxed text-emerald-300" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold mb-0.5" }, "\u{1F4C8} ", nl ? "Live meting" : "Live analytics"), /* @__PURE__ */ react_shim_default.createElement("div", null, "Hick: ", hickNow.toFixed(2), " bit (", currentRound?.options.length ?? 0, " ", nl ? "keuzes" : "choices", ")"), /* @__PURE__ */ react_shim_default.createElement("div", null, nl ? "Pogingen" : "Trials", ": ", u.trials, " \xB7 ", nl ? "goed" : "hit", " ", (u.hitRate * 100).toFixed(0), "%"), /* @__PURE__ */ react_shim_default.createElement("div", null, "Fitts ID\u0304: ", u.meanId.toFixed(2), " bit \xB7 TP: ", u.meanThroughput.toFixed(2), " bit/s"), /* @__PURE__ */ react_shim_default.createElement("div", null, nl ? "Tijd" : "Time", ": ", u.meanMtMs, " ms \xB7 We: ", u.effectiveWidthPx === null ? "\u2014" : `${u.effectiveWidthPx}px`), /* @__PURE__ */ react_shim_default.createElement("div", null, "MT = ", u.fittsA === null ? "\u2014" : u.fittsA, " + ", u.fittsB === null ? "\u2014" : u.fittsB, "\xB7ID")));
     };
+    const giveFigureFeedback = (word, verdict) => {
+      initAudio();
+      lastInteraction.current = Date.now();
+      const key = word.toLowerCase();
+      const before = genFigures[key] ?? null;
+      let after = before;
+      const nl = language === "nl";
+      if (verdict === "wrong" || verdict === "another") {
+        do {
+          after = 1 + Math.floor(Math.random() * 999999999);
+        } while (after === before);
+        const next = { ...genFigures, [key]: after };
+        setGenFigures(next);
+        try {
+          localStorage.setItem("anm_gen_figs", JSON.stringify(next));
+        } catch {
+        }
+        setShareToast(verdict === "wrong" ? nl ? "\u2717 Oeps, ik maak een nieuw plaatje!" : "\u2717 Oops, making a new picture!" : nl ? "\u21BB Een ander plaatje!" : "\u21BB Another picture!");
+        setTimeout(() => speakWord(word, curriculumMode === "aapnootmies" ? "nl" : void 0), 250);
+      } else {
+        setShareToast(nl ? "\u2665 Mooi! Fijn dat je dit plaatje leuk vindt." : "\u2665 Lovely! Glad you like this picture.");
+        speakWord(word, curriculumMode === "aapnootmies" ? "nl" : void 0);
+      }
+      setTimeout(() => setShareToast(null), 2200);
+      const entry = {
+        word: key,
+        verdict,
+        seedBefore: before,
+        seedAfter: after,
+        at: (/* @__PURE__ */ new Date()).toISOString(),
+        complexity
+      };
+      figureFeedbackRef.current = [...figureFeedbackRef.current, entry].slice(-300);
+      try {
+        localStorage.setItem("anm_fig_feedback", JSON.stringify(figureFeedbackRef.current));
+      } catch {
+      }
+      logTimelineEvent("figure_feedback", { ...entry });
+    };
     const renderWordWithSmartColors = (word, targetWord) => {
       const dMask = word.length > 1 ? digraphMask(word) : [];
       if (!targetWord) {
@@ -3548,6 +3691,7 @@
         onTouchMove: handleInteractionEvent,
         onTouchStart: handleInteractionEvent
       },
+      /* @__PURE__ */ react_shim_default.createElement("style", null, `@keyframes figIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }`),
       pinholeEnabled && /* @__PURE__ */ react_shim_default.createElement(
         "div",
         {
@@ -3816,19 +3960,55 @@
             className: "relative group overflow-hidden h-36 sm:h-52 md:h-56 p-0 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 shadow-xl flex flex-col items-stretch justify-between transition-colors active:scale-95"
           },
           /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-slate-800/90" }, /* @__PURE__ */ react_shim_default.createElement(
-            CellSvgUnderlay,
+            "div",
             {
-              word,
-              aliveness,
-              hoverDwellMs,
-              isHovered,
-              isCandidateMatch,
-              isTarget: isExactTarget,
-              level,
-              animTick: animTick + i * 0.9,
-              anmFigureMode
-            }
-          ), kineticMode && /* @__PURE__ */ react_shim_default.createElement("svg", { className: "absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity", viewBox: "0 0 100 100", preserveAspectRatio: "none" }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 18 L 2 2 L 18 2", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 2 L 98 2 L 98 18", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 82 L 2 98 L 18 98", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 98 L 98 98 L 98 82", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }))),
+              key: `fig-${word}-${genFigures[word.toLowerCase()] ?? "orig"}`,
+              className: "w-full h-full",
+              style: { animation: "figIn 0.4s ease-out" }
+            },
+            /* @__PURE__ */ react_shim_default.createElement(
+              CellSvgUnderlay,
+              {
+                word,
+                genSeed: genFigures[word.toLowerCase()],
+                talking: speakingKey === word.toLowerCase(),
+                aliveness,
+                hoverDwellMs,
+                isHovered,
+                isCandidateMatch,
+                isTarget: isExactTarget,
+                level,
+                animTick: animTick + i * 0.9,
+                anmFigureMode
+              }
+            )
+          ), /* @__PURE__ */ react_shim_default.createElement("div", { className: "absolute right-0 bottom-0 z-20 flex items-center" }, [
+            ["wrong", "\u2717", language === "nl" ? "Klopt niet" : "Not right", "text-rose-300"],
+            ["nice", "\u2665", language === "nl" ? "Mooi" : "Nice", "text-emerald-300"],
+            ["another", "\u21BB", language === "nl" ? "Ander plaatje" : "Another picture", "text-sky-300"]
+          ].map(([verdict, glyph, label, tone]) => /* @__PURE__ */ react_shim_default.createElement(
+            "span",
+            {
+              key: verdict,
+              role: "button",
+              "aria-label": label,
+              title: label,
+              onPointerDown: (ev) => ev.stopPropagation(),
+              onClick: (ev) => {
+                ev.stopPropagation();
+                ev.preventDefault();
+                giveFigureFeedback(word, verdict);
+              },
+              className: "flex items-center justify-center w-[30px] h-[30px] cursor-pointer select-none"
+            },
+            /* @__PURE__ */ react_shim_default.createElement(
+              "span",
+              {
+                className: `w-[18px] h-[18px] rounded-full bg-slate-950/75 border border-slate-600/70 text-[10px] leading-none flex items-center justify-center font-bold opacity-55 group-hover:opacity-100 active:opacity-100 active:scale-125 transition ${tone}`
+              },
+              glyph
+            )
+          ))), kineticMode && /* @__PURE__ */ react_shim_default.createElement("svg", { className: "absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity", viewBox: "0 0 100 100", preserveAspectRatio: "none" }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 18 L 2 2 L 18 2", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 2 L 98 2 L 98 18", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 82 L 2 98 L 18 98", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 98 L 98 98 L 98 82", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }))),
           /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative z-10 w-full py-1 sm:py-1.5 px-2 bg-slate-950/95 border-t-2 border-slate-700/80 flex items-center justify-center shrink-0 text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-wide" }, renderWordWithSmartColors(word, currentRound.target), hoverDwellMs > 150 && /* @__PURE__ */ react_shim_default.createElement(
             "div",
             {
