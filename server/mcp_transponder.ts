@@ -476,19 +476,25 @@ function handleMcpRequest(req: JsonRpcRequest): Record<string, unknown> | null {
     if (toolName === 'inspect_aapnootmies_figures') {
       const anmDir = path.join(WORKSPACE_ROOT, 'public', 'aapnootmies');
       const figures = AAP_NOOT_MIES_WORDS.map((word, idx) => {
+        const webpFile = path.join(anmDir, `${word}.webp`);
         const pngFile = path.join(anmDir, `${word}.png`);
         const jpgFile = path.join(anmDir, `${word}.jpg`);
+        const webpExists = fs.existsSync(webpFile);
         const pngExists = fs.existsSync(pngFile);
         const jpgExists = fs.existsSync(jpgFile);
-        const sizeBytes = pngExists ? fs.statSync(pngFile).size : 0;
+        const webpSizeBytes = webpExists ? fs.statSync(webpFile).size : 0;
+        const pngSizeBytes = pngExists ? fs.statSync(pngFile).size : 0;
         return {
           index: idx + 1,
           word,
+          webpUrl: `/aapnootmies/${word}.webp`,
           pngUrl: `/aapnootmies/${word}.png`,
           jpgUrl: `/aapnootmies/${word}.jpg`,
+          webpExists,
           pngExists,
           jpgExists,
-          pngSizeBytes: sizeBytes
+          webpSizeBytes,
+          pngSizeBytes
         };
       });
 
@@ -502,7 +508,8 @@ function handleMcpRequest(req: JsonRpcRequest): Record<string, unknown> | null {
               text: JSON.stringify(
                 {
                   totalFigures: figures.length,
-                  allPresent: figures.every(f => f.pngExists && f.jpgExists),
+                  allPresent: figures.every(f => f.webpExists && f.pngExists && f.jpgExists),
+                  allAlphaWebpPresent: figures.every(f => f.webpExists),
                   contactSheetUrl: `/aapnootmies/contact_sheet.png`,
                   figures
                 },
@@ -717,6 +724,7 @@ const MIME_TYPES: Record<string, string> = {
   '.js': 'application/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webp': 'image/webp',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -972,12 +980,21 @@ if (isStdioMode) {
   });
 }
 
-server.listen(PORT, () => {
-  const logFn = isStdioMode ? console.error : console.log;
-  logFn(`🚀 [RT Tutor MCP Transponder] Live on http://localhost:${PORT}`);
-  logFn(`   ├─ 🌐 Web App & 17 Aap-Noot-Mies Assets : http://localhost:${PORT}/`);
-  logFn(`   ├─ 📡 MCP JSON-RPC 2.0 Endpoint         : http://localhost:${PORT}/mcp ${isStdioMode ? '(+ STDIO active)' : ''}`);
-  logFn(`   ├─ 🔬 Live Telemetry & 2D-FFT State     : http://localhost:${PORT}/api/state`);
-  logFn(`   └─ 🎮 Remote Command Stream (SSE/POST)  : http://localhost:${PORT}/api/command`);
-});
+export function startTransponderServer(port: number = PORT): Promise<http.Server> {
+  return new Promise((resolve) => {
+    server.listen(port, () => {
+      const logFn = isStdioMode ? console.error : console.log;
+      logFn(`🚀 [RT Tutor MCP Transponder] Live on http://localhost:${port}`);
+      logFn(`   ├─ 🌐 Web App & 17 Aap-Noot-Mies Assets : http://localhost:${port}/`);
+      logFn(`   ├─ 📡 MCP JSON-RPC 2.0 Endpoint         : http://localhost:${port}/mcp ${isStdioMode ? '(+ STDIO active)' : ''}`);
+      logFn(`   ├─ 🔬 Live Telemetry & 2D-FFT State     : http://localhost:${port}/api/state`);
+      logFn(`   └─ 🎮 Remote Command Stream (SSE/POST)  : http://localhost:${port}/api/command`);
+      resolve(server);
+    });
+  });
+}
+
+if (!process.env.RT_TUTOR_EMBEDDED_TRANSPONDER) {
+  void startTransponderServer(PORT);
+}
 

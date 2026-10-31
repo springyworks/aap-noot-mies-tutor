@@ -716,6 +716,21 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   const imgY = -imgH / 2;
   const frameDashOffset = Math.round(440 * (1 - drawProgress));
 
+  // 1960s Motion-Lamp (Mathmos / Liquid Oil-Lamp) organic thermal convection phase
+  const lampPrimary = anmFigure?.lampPrimaryHex || primaryStroke;
+  const lampSecondary = anmFigure?.lampSecondaryHex || secondaryStroke;
+  const lampWarmth = anmFigure?.lampWarmthHex || accentColor;
+  const lampSpeed = 0.65 + effectiveAliveness * 0.45 + goldenEvolution * 0.35;
+  const lampPhase = animTick * lampSpeed;
+  const blob1X = Math.sin(lampPhase * 1.1) * (imgW * 0.22);
+  const blob1Y = Math.cos(lampPhase * 0.78) * (imgH * 0.28);
+  const blob2X = Math.cos(lampPhase * 0.92 + 1.8) * (imgW * 0.24);
+  const blob2Y = Math.sin(lampPhase * 1.24 + 0.9) * (imgH * 0.26);
+  const blob3X = Math.sin(lampPhase * 1.48 + 3.4) * (imgW * 0.16);
+  const blob3Y = Math.sin(lampPhase * 0.64 + 2.1) * (imgH * 0.30);
+  const blobScale1 = 1 + Math.sin(lampPhase * 1.7) * 0.14;
+  const blobScale2 = 1 + Math.cos(lampPhase * 1.35) * 0.16;
+
   return (
     <svg
       viewBox="0 0 200 140"
@@ -737,10 +752,25 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
             <clipPath id={`anm-clip-${w}`}>
               <rect x={imgX} y={imgY} width={imgW} height={imgH} rx="14" ry="14" />
             </clipPath>
+            <radialGradient id={`lamp-blob1-${w}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={lampWarmth} stopOpacity="0.62" />
+              <stop offset="55%" stopColor={lampPrimary} stopOpacity="0.34" />
+              <stop offset="100%" stopColor={lampPrimary} stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id={`lamp-blob2-${w}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={lampSecondary} stopOpacity="0.54" />
+              <stop offset="60%" stopColor={lampPrimary} stopOpacity="0.24" />
+              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0" />
+            </radialGradient>
+            <linearGradient id={`lamp-warm-back-${w}`} x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={lampPrimary} stopOpacity="0.22" />
+              <stop offset="50%" stopColor="#1e293b" stopOpacity="0.12" />
+              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0.20" />
+            </linearGradient>
             <linearGradient id={`anm-vignette-${w}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#0f172a" stopOpacity="0.10" />
-              <stop offset="50%" stopColor="#0f172a" stopOpacity="0.18" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.58" />
+              <stop offset="0%" stopColor="#0f172a" stopOpacity="0.06" />
+              <stop offset="65%" stopColor="#0f172a" stopOpacity="0.14" />
+              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.44" />
             </linearGradient>
           </>
         )}
@@ -749,17 +779,48 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       {/* Ambient Aura */}
       <ellipse cx="100" cy="70" rx={76 * pulse} ry={50 * pulse} fill={`url(#glow-${w})`} />
 
-      {/* CUT-OUT AAP-NOOT-MIES FIGURE IMAGE ANIMATED INSIDE SVG */}
+      {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + SUBTLE 1960s MOTION-LAMP UNDERLAY */}
       {showCutoutImage && anmFigure && (
         <g
           transform={`translate(${(100 + sway * 0.45).toFixed(2)}, ${(70 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.90 + effectiveAliveness * 0.12 + goldenEvolution * 0.08).toFixed(3)})`}
         >
           <g
             clipPath={`url(#anm-clip-${w})`}
-            opacity={Math.min(0.96, 0.28 + effectiveAliveness * 0.52 + goldenEvolution * 0.20)}
+            opacity={Math.min(0.98, 0.34 + effectiveAliveness * 0.50 + goldenEvolution * 0.16)}
           >
+            {/* 1960s Motion-Lamp Base Chamber */}
+            <rect x={imgX} y={imgY} width={imgW} height={imgH} fill={`url(#lamp-warm-back-${w})`} />
+
+            {/* Subtle 1960s Liquid Oil-Lamp Rising & Morphing Thermal Wax Blobs Behind Alpha WebP */}
+            <g opacity={Math.min(0.88, 0.38 + effectiveAliveness * 0.32 + goldenEvolution * 0.24)}>
+              <ellipse
+                cx={blob1X.toFixed(2)}
+                cy={blob1Y.toFixed(2)}
+                rx={(imgW * 0.42 * blobScale1).toFixed(2)}
+                ry={(imgH * 0.36 / blobScale1).toFixed(2)}
+                fill={`url(#lamp-blob1-${w})`}
+                transform={`rotate(${(lampPhase * 18).toFixed(1)}, ${blob1X.toFixed(2)}, ${blob1Y.toFixed(2)})`}
+              />
+              <ellipse
+                cx={blob2X.toFixed(2)}
+                cy={blob2Y.toFixed(2)}
+                rx={(imgW * 0.38 / blobScale2).toFixed(2)}
+                ry={(imgH * 0.40 * blobScale2).toFixed(2)}
+                fill={`url(#lamp-blob2-${w})`}
+                transform={`rotate(${(-lampPhase * 14).toFixed(1)}, ${blob2X.toFixed(2)}, ${blob2Y.toFixed(2)})`}
+              />
+              <circle
+                cx={blob3X.toFixed(2)}
+                cy={blob3Y.toFixed(2)}
+                r={(Math.min(imgW, imgH) * 0.28 * blobScale1).toFixed(2)}
+                fill={`url(#lamp-blob1-${w})`}
+                opacity="0.72"
+              />
+            </g>
+
+            {/* Transparent Alpha-Channel WebP Character Cut-Out (1960s Motion-Lamp shines through sky/edges) */}
             <image
-              href={anmFigure.dataUri}
+              href={anmFigure.webpDataUri || anmFigure.dataUri}
               x={imgX}
               y={imgY}
               width={imgW}
