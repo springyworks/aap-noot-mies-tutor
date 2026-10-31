@@ -784,65 +784,281 @@
     for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
     return h >>> 0;
   };
-  var GeneratedCreature = ({
-    word,
-    seed,
-    talking,
-    tick,
-    lit
-  }) => {
-    const rnd = mulberry32((seed ^ hashWord(word)) >>> 0);
-    const hue = Math.floor(rnd() * 360);
-    const body = `hsl(${hue} ${60 + Math.round(rnd() * 20)}% ${58 + Math.round(rnd() * 8)}%)`;
-    const belly = `hsl(${(hue + 22) % 360} 75% 88%)`;
-    const dark = `hsl(${hue} 45% 20%)`;
-    const accent = `hsl(${(hue + 160) % 360} 72% 62%)`;
-    const cheekCol = `hsl(${(hue + 330) % 360} 85% 74%)`;
-    const shape = Math.floor(rnd() * 4);
-    const rx = [34, 28, 40, 32][shape];
-    const ry = [32, 40, 28, 36][shape];
-    const earType = Math.floor(rnd() * 4);
-    const hasAntenna = rnd() < 0.3;
-    const hasTail = rnd() < 0.55;
-    const cyclops = rnd() < 0.15;
-    const eyeR = 5 + rnd() * 3.5;
-    const eyeGap = 11 + rnd() * 5;
-    const mouthW = 10 + rnd() * 6;
-    const hasCheeks = rnd() < 0.65;
-    const spots = rnd() < 0.4 ? 3 + Math.floor(rnd() * 3) : 0;
-    const spotXY = [];
-    for (let i = 0; i < spots; i++) spotXY.push([(rnd() - 0.5) * rx * 1.1, -ry * 0.75 + rnd() * ry * 0.35, 2 + rnd() * 3]);
-    const open = talking ? Math.min(1, 0.12 + 0.88 * Math.abs(Math.sin(tick * 6) * 0.7 + Math.sin(tick * 9.7 + seed) * 0.3)) : 0;
-    const eyeY = -ry * 0.22;
-    const mouthY = ry * 0.26;
-    return /* @__PURE__ */ react_shim_default.createElement("svg", { viewBox: "0 0 200 136", className: "w-full h-full pointer-events-none select-none overflow-hidden", "aria-label": word }, /* @__PURE__ */ react_shim_default.createElement("g", { transform: "translate(100, 64)" }, lit > 0.05 && /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "0", rx: rx + 20, ry: ry + 16, fill: accent, opacity: 0.14 + lit * 0.18 }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: ry + 6, rx: rx * 0.8, ry: "5", fill: "#000", opacity: "0.28" }), hasTail && /* @__PURE__ */ react_shim_default.createElement(
-      "path",
+  var WORD_SVG_ALIASES = {
+    aap: "aap",
+    noot: "noot",
+    mies: "mies",
+    wim: "wim",
+    zus: "zus",
+    jet: "jet",
+    teun: "teun",
+    vuur: "vuur",
+    gijs: "gijs",
+    lam: "lam",
+    kees: "kees",
+    bok: "bok",
+    weide: "weide",
+    does: "does",
+    hok: "hok",
+    duif: "duif",
+    schapen: "schapen",
+    a: "aap",
+    b: "bok",
+    c: "schapen",
+    d: "does",
+    e: "weide",
+    f: "duif",
+    g: "gijs",
+    h: "hok",
+    i: "wim",
+    j: "jet",
+    k: "kees",
+    l: "lam",
+    m: "mies",
+    n: "noot",
+    o: "noot",
+    p: "aap",
+    q: "kees",
+    r: "vuur",
+    s: "schapen",
+    t: "teun",
+    u: "duif",
+    v: "vuur",
+    w: "wim",
+    x: "bok",
+    y: "wim",
+    z: "zus",
+    kat: "mies",
+    cat: "mies",
+    hond: "does",
+    dog: "does",
+    vos: "does",
+    fox: "does",
+    beer: "does",
+    bear: "does",
+    haas: "does",
+    rat: "does",
+    koe: "weide",
+    cow: "weide",
+    beef: "weide",
+    schaap: "lam",
+    boar: "bok",
+    hert: "bok",
+    boer: "teun",
+    hoed: "teun",
+    hat: "teun",
+    cop: "teun",
+    boss: "teun",
+    vogel: "duif",
+    vleugel: "duif",
+    kip: "duif",
+    bat: "duif",
+    beak: "duif",
+    vlinder: "duif",
+    vliegtuig: "duif",
+    huis: "hok",
+    dak: "hok",
+    stoep: "hok",
+    schuur: "hok",
+    school: "hok",
+    deur: "hok",
+    stad: "hok",
+    vloer: "hok",
+    doos: "hok",
+    box: "hok",
+    vlam: "vuur",
+    stoom: "vuur",
+    boy: "wim",
+    son: "wim",
+    run: "wim",
+    joy: "wim",
+    voet: "wim",
+    vinger: "wim",
+    boek: "wim",
+    book: "wim",
+    bord: "wim",
+    aunt: "zus",
+    bed: "zus",
+    stoel: "zus",
+    bank: "zus",
+    toy: "gijs",
+    bean: "noot",
+    corn: "noot",
+    vis: "vis",
+    schelp: "vis",
+    auto: "auto",
+    car: "auto",
+    boot: "boot",
+    boat: "boot",
+    schip: "boot",
+    zee: "boot",
+    coal: "boot",
+    coat: "boot",
+    boom: "boom",
+    hout: "boom",
+    autumn: "boom",
+    zon: "zon",
+    sun: "zon",
+    august: "zon",
+    dawn: "zon",
+    days: "zon",
+    bal: "zon",
+    koek: "zon",
+    coin: "zon",
+    coil: "zon"
+  };
+  var SVG_ANCHOR_RIGS = {
+    aap: { head: [-2, -6], jaw: [-2, -11], limb: [12, 16] },
+    noot: { head: [0, 4], jaw: [0, 10], limb: [0, -18] },
+    mies: { head: [0, -4], jaw: [0, -7], limb: [18, 16] },
+    wim: { head: [0, -10], jaw: [0, -15], limb: [12, -8] },
+    zus: { head: [0, -11], jaw: [0, -16], limb: [2, 2] },
+    jet: { head: [0, -11], jaw: [0, -16], limb: [10, -8] },
+    teun: { head: [0, -10], jaw: [0, -15], limb: [-12, -8] },
+    vuur: { head: [0, -6], jaw: [0, 22], limb: [0, -16] },
+    gijs: { head: [-20, -10], jaw: [-20, -15], limb: [20, 8] },
+    lam: { head: [15, -6], jaw: [21, -3], limb: [-22, 0] },
+    kees: { head: [0, -11], jaw: [0, -16], limb: [9, 25] },
+    bok: { head: [15, -8], jaw: [23, -2], limb: [-22, -4] },
+    weide: { head: [-12, -2], jaw: [-12, 8], limb: [30, -8] },
+    does: { head: [15, -6], jaw: [22, -1], limb: [-22, -2] },
+    hok: { head: [0, -4], jaw: [-9, 16], limb: [22, -18] },
+    duif: { head: [15, -4], jaw: [22, -4], limb: [-2, -2] },
+    schapen: { head: [14, 4], jaw: [19, 6], limb: [-26, 2] },
+    vis: { head: [0, 0], jaw: [20, 2], limb: [-24, 0] },
+    auto: { head: [0, 2], jaw: [28, 6], limb: [-18, 14] },
+    boot: { head: [0, 12], jaw: [18, 14], limb: [0, -8] },
+    boom: { head: [0, 10], jaw: [0, 4], limb: [0, -12] },
+    zon: { head: [0, 0], jaw: [0, 7], limb: [0, -26] }
+  };
+  var pivotRot = ([ax, ay], deg, dy = 0) => `${dy ? `translate(0, ${dy.toFixed(1)}) ` : ""}rotate(${deg.toFixed(1)}, ${ax}, ${ay})`;
+  var GeneratedCreature = ({ word, seed, talking, tick, lit, showAnchors = false }) => {
+    const kind = WORD_SVG_ALIASES[word.toLowerCase()] || "aap";
+    const rig = SVG_ANCHOR_RIGS[kind];
+    const rnd = mulberry32((seed * 2654435761 ^ hashWord(kind)) >>> 0);
+    const vIdx = Math.abs(seed) % 5;
+    const jit = (rnd() - 0.5) * 14;
+    const open = talking ? Math.min(1, 0.14 + 0.86 * Math.abs(Math.sin(tick * 6.2) * 0.68 + Math.sin(tick * 10.1 + seed) * 0.32)) : 0;
+    const headDeg = talking ? Math.sin(tick * 4.2 + seed) * 5.2 : 0;
+    const jawDeg = talking ? open * 15 : 0;
+    const jawDrop = talking ? open * 4.2 : 0;
+    const limbDeg = talking ? Math.sin(tick * 5.6 + seed * 0.7) * 15 : 0;
+    const dark = "#1e293b";
+    const renderMouth = (mx, my, mw = 8, cheekHex = "#f472b6") => /* @__PURE__ */ react_shim_default.createElement(
+      "g",
       {
-        d: `M ${rx * 0.8} ${ry * 0.35} C ${rx + 22} ${ry * 0.1}, ${rx + 16} ${-ry * 0.5}, ${rx + 4} ${-ry * 0.45}`,
-        fill: "none",
-        stroke: dark,
-        strokeWidth: "6",
-        strokeLinecap: "round"
-      }
-    ), hasTail && /* @__PURE__ */ react_shim_default.createElement(
-      "path",
+        "data-anchor": "jaw",
+        "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`,
+        transform: pivotRot(rig.jaw, jawDeg * 0.35, jawDrop * 0.55)
+      },
+      /* @__PURE__ */ react_shim_default.createElement("circle", { cx: mx - mw * 0.85, cy: my - 1, r: "2.6", fill: cheekHex, opacity: "0.65" }),
+      /* @__PURE__ */ react_shim_default.createElement("circle", { cx: mx + mw * 0.85, cy: my - 1, r: "2.6", fill: cheekHex, opacity: "0.65" }),
+      open > 0.05 ? /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: mx, cy: my + open * 1.4, rx: mw * 0.55, ry: 1.4 + open * 4.2, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: mx, cy: my + open * 2.8, rx: mw * 0.34, ry: Math.max(0.6, open * 1.9), fill: "#fb7185" })) : /* @__PURE__ */ react_shim_default.createElement("path", { d: `M ${mx - mw * 0.48} ${my} Q ${mx} ${my + 3.8} ${mx + mw * 0.48} ${my}`, fill: "none", stroke: dark, strokeWidth: "2", strokeLinecap: "round" })
+    );
+    return /* @__PURE__ */ react_shim_default.createElement(
+      "svg",
       {
-        d: `M ${rx * 0.8} ${ry * 0.35} C ${rx + 22} ${ry * 0.1}, ${rx + 16} ${-ry * 0.5}, ${rx + 4} ${-ry * 0.45}`,
-        fill: "none",
-        stroke: body,
-        strokeWidth: "3.4",
-        strokeLinecap: "round"
-      }
-    ), earType === 1 && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -rx * 0.62, cy: -ry * 0.82, r: "10", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: rx * 0.62, cy: -ry * 0.82, r: "10", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -rx * 0.62, cy: -ry * 0.82, r: "5", fill: cheekCol, opacity: "0.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: rx * 0.62, cy: -ry * 0.82, r: "5", fill: cheekCol, opacity: "0.8" })), earType === 2 && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("path", { d: `M ${-rx * 0.85} ${-ry * 0.5} L ${-rx * 0.55} ${-ry - 14} L ${-rx * 0.15} ${-ry * 0.85} Z`, fill: body, stroke: dark, strokeWidth: "2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: `M ${rx * 0.85} ${-ry * 0.5} L ${rx * 0.55} ${-ry - 14} L ${rx * 0.15} ${-ry * 0.85} Z`, fill: body, stroke: dark, strokeWidth: "2", strokeLinejoin: "round" })), earType === 3 && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: -rx * 0.5, cy: -ry - 8, rx: "7", ry: "17", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: rx * 0.5, cy: -ry - 8, rx: "7", ry: "17", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: -rx * 0.5, cy: -ry - 6, rx: "3.2", ry: "11", fill: cheekCol, opacity: "0.75" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: rx * 0.5, cy: -ry - 6, rx: "3.2", ry: "11", fill: cheekCol, opacity: "0.75" })), hasAntenna && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("line", { x1: "0", y1: -ry + 2, x2: "0", y2: -ry - 16, stroke: dark, strokeWidth: "2.4", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: -ry - 18, r: "4.2", fill: accent, stroke: dark, strokeWidth: "1.6" })), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: -rx * 0.4, cy: ry - 1, rx: "9", ry: "5", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: rx * 0.4, cy: ry - 1, rx: "9", ry: "5", fill: body, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "0", rx, ry, fill: body, stroke: dark, strokeWidth: "2.4" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: ry * 0.32, rx: rx * 0.62, ry: ry * 0.56, fill: belly, opacity: "0.88" }), spotXY.map(([sx, sy, sr], i) => /* @__PURE__ */ react_shim_default.createElement("circle", { key: i, cx: sx, cy: sy, r: sr, fill: accent, opacity: "0.55" })), cyclops ? /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: eyeY, r: eyeR * 1.5, fill: "#fff", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: eyeY + 1, r: eyeR * 0.78, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -eyeR * 0.28, cy: eyeY - eyeR * 0.2, r: eyeR * 0.26, fill: "#fff" })) : /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, [-1, 1].map((side) => /* @__PURE__ */ react_shim_default.createElement("g", { key: side }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: side * eyeGap, cy: eyeY, r: eyeR, fill: "#fff", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: side * eyeGap + 0.8, cy: eyeY + 1, r: eyeR * 0.52, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: side * eyeGap - eyeR * 0.18, cy: eyeY - eyeR * 0.14, r: eyeR * 0.2, fill: "#fff" })))), hasCheeks && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: -eyeGap - 5, cy: eyeY + eyeR + 5, r: "4.4", fill: cheekCol, opacity: "0.7" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: eyeGap + 5, cy: eyeY + eyeR + 5, r: "4.4", fill: cheekCol, opacity: "0.7" })), open > 0.04 ? /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: mouthY + open * 2, rx: mouthW / 2, ry: 1.6 + open * 8.5, fill: dark }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: mouthY + open * 2 + open * 5, rx: mouthW / 3.2, ry: Math.max(0.6, open * 3), fill: cheekCol, opacity: "0.9" })) : /* @__PURE__ */ react_shim_default.createElement(
-      "path",
-      {
-        d: `M ${-mouthW / 2} ${mouthY} Q 0 ${mouthY + 7} ${mouthW / 2} ${mouthY}`,
-        fill: "none",
-        stroke: dark,
-        strokeWidth: "2.4",
-        strokeLinecap: "round"
-      }
-    )));
+        viewBox: "0 0 200 136",
+        className: "w-full h-full pointer-events-none select-none overflow-hidden",
+        "aria-label": word,
+        "data-archetype": kind
+      },
+      /* @__PURE__ */ react_shim_default.createElement("g", { transform: "translate(100, 66)" }, lit > 0.04 && /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "0", rx: "58", ry: "44", fill: "#f59e0b", opacity: 0.1 + lit * 0.16 }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "34", rx: "34", ry: "4.5", fill: "#000", opacity: "0.26" }), kind === "aap" && (() => {
+        const fur = [`hsl(${26 + jit} 58% 42%)`, "#92400e", "#78350f", "#a16207", "#b45309"][vIdx];
+        const muzzle = "#fde68a";
+        const fruitCol = vIdx % 2 === 0 ? "#facc15" : "#ef4444";
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -46 28 L 46 24", stroke: "#78350f", strokeWidth: "5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 12 16 C 36 22 44 4 36 -12 C 30 -22 18 -14 24 -6", fill: "none", stroke: fur, strokeWidth: "5", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "-2", cy: "10", rx: "16", ry: "18", fill: fur, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "-2", cy: "12", rx: "10", ry: "12", fill: muzzle, opacity: "0.85" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -14 4 Q -28 -2 -20 -12", fill: "none", stroke: fur, strokeWidth: "4.5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-20", cy: "-14", r: "5", fill: fruitCol, stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-18", cy: "-18", r: "6.5", fill: fur, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "14", cy: "-18", r: "6.5", fill: fur, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-18", cy: "-18", r: "3.4", fill: "#fca5a5" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "14", cy: "-18", r: "3.4", fill: "#fca5a5" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-2", cy: "-18", r: "14", fill: fur, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "-2", cy: "-13", rx: "10.5", ry: "7.5", fill: muzzle, stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-6.5", cy: "-21", r: "2.3", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "2.5", cy: "-21", r: "2.3", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-7", cy: "-21.6", r: "0.8", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "2", cy: "-21.6", r: "0.8", fill: "#fff" }), renderMouth(-2, -11, 9)));
+      })(), kind === "noot" && (() => {
+        const shell = ["#b45309", "#92400e", "#a16207", "#78350f", "#d97706"][vIdx];
+        const husk = ["#15803d", "#16a34a", "#0d9488", "#4d7c0f", "#059669"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.7) }, /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.8) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 0 -18 C -20 -34 -38 -20 -28 -8 C -18 -2 -6 -10 0 -18 Z", fill: husk, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 0 -18 C 20 -34 38 -20 28 -8 C 18 -2 6 -10 0 -18 Z", fill: husk, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 0 -26 L 0 -16", stroke: "#78350f", strokeWidth: "3.5", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("path", { d: `M -2 -16 C ${-28 - open * 7} -10 ${-30 - open * 7} 20 -6 28`, fill: husk, fillOpacity: "0.85", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: `M 2 -16 C ${28 + open * 7} -10 ${30 + open * 7} 20 6 28`, fill: husk, fillOpacity: "0.85", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "6", rx: "17", ry: "21", fill: shell, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 0 -14 C -10 -14 -17 -6 -17 0 L 17 0 C 17 -6 10 -14 0 -14 Z", fill: "#78350f", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-6", cy: "4", r: "2.2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "6", cy: "4", r: "2.2", fill: dark }), renderMouth(0, 12, 9));
+      })(), kind === "mies" && (() => {
+        const coat = ["#f97316", "#cbd5e1", "#fbbf24", "#a8a29e", "#fb7185"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 16 18 C 36 16 40 -6 28 -14", fill: "none", stroke: coat, strokeWidth: "6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 16 18 C 36 16 40 -6 28 -14", fill: "none", stroke: dark, strokeWidth: "2", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "14", rx: "18", ry: "15", fill: coat, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "16", rx: "10", ry: "10", fill: "#fff", opacity: "0.8" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-16,-14 -22,-32 -5,-22", fill: coat, stroke: dark, strokeWidth: "2.2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "16,-14 22,-32 5,-22", fill: coat, stroke: dark, strokeWidth: "2.2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-15,-16 -19,-28 -8,-21", fill: "#fda4af" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "15,-16 19,-28 8,-21", fill: "#fda4af" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "-12", rx: "17", ry: "14", fill: coat, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-6.5", cy: "-14", r: "2.5", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "6.5", cy: "-14", r: "2.5", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-3,-10 3,-10 0,-7", fill: "#fb7185" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -12 -9 L -26 -11 M -12 -6 L -26 -5 M 12 -9 L 26 -11 M 12 -6 L 26 -5", stroke: dark, strokeWidth: "1.6", strokeLinecap: "round" }), renderMouth(0, -5, 8)));
+      })(), kind === "wim" && (() => {
+        const tunic = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#06b6d4"][vIdx];
+        const hair = ["#92400e", "#d97706", "#451a03", "#b45309", "#78350f"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("line", { x1: "-7", y1: "20", x2: "-7", y2: "33", stroke: dark, strokeWidth: "3.2", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("line", { x1: "7", y1: "20", x2: "7", y2: "33", stroke: dark, strokeWidth: "3.2", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("rect", { x: "-13", y: "-8", width: "26", height: "22", rx: "5", fill: tunic, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("line", { x1: "-13", y1: "4", x2: "13", y2: "4", stroke: "#fbbf24", strokeWidth: "3" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -13 -6 L -23 6", stroke: tunic, strokeWidth: "5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 12 -6 L 26 -18", stroke: tunic, strokeWidth: "5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "27", cy: "-19", r: "3.5", fill: "#fde68a", stroke: dark, strokeWidth: "1.6" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "-20", r: "12.5", fill: "#fde68a", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -13 -22 C -12 -35 12 -35 13 -22 C 6 -27 -6 -27 -13 -22 Z", fill: hair, stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-4.5", cy: "-21", r: "2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "4.5", cy: "-21", r: "2", fill: dark }), renderMouth(0, -15, 7)));
+      })(), kind === "zus" && (() => {
+        const dress = ["#ec4899", "#a855f7", "#f43f5e", "#14b8a6", "#f97316"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -11 -8 L 11 -8 L 22 28 L -22 28 Z", fill: dress, stroke: dark, strokeWidth: "2.2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -7 -7 L 7 -7 L 12 25 L -12 25 Z", fill: "#f8fafc", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.7) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -6 0 L 12 4 L 9 12 L -9 7 Z", fill: "#fbbf24", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-8", cy: "-1", r: "5", fill: "#fde68a", stroke: dark, strokeWidth: "1.8" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-11", cy: "-25", r: "5", fill: "#b45309", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "-21", r: "12", fill: "#fde68a", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -12 -23 C -10 -34 10 -34 12 -23", fill: "#b45309", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-4.2", cy: "-22", r: "2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "4.2", cy: "-22", r: "2", fill: dark }), renderMouth(0, -16, 7)));
+      })(), kind === "jet" && (() => {
+        const skirt = ["#8b5cf6", "#f43f5e", "#06b6d4", "#10b981", "#eab308"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("line", { x1: "-6", y1: "22", x2: "-6", y2: "33", stroke: dark, strokeWidth: "2.8", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("line", { x1: "6", y1: "22", x2: "6", y2: "33", stroke: dark, strokeWidth: "2.8", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.45) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -10 -8 L 10 -8 L 28 22 Q 0 28 -28 22 Z", fill: skirt, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -10 -7 L -24 10 M 10 -7 L 24 10", stroke: dark, strokeWidth: "2.4", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-10,-25 -20,-31 -17,-20", fill: "#fb7185", stroke: dark, strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "10,-25 20,-31 17,-20", fill: "#fb7185", stroke: dark, strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "-21", r: "12", fill: "#fde68a", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -12 -23 C -8 -33 8 -33 12 -23", fill: "#d97706", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-4.2", cy: "-22", r: "2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "4.2", cy: "-22", r: "2", fill: dark }), renderMouth(0, -16, 7)));
+      })(), kind === "teun" && (() => {
+        const coat = ["#0284c7", "#059669", "#7c3aed", "#d97706", "#475569"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("rect", { x: "-13", y: "-8", width: "26", height: "24", rx: "4", fill: coat, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-9,-8 9,-8 0,3", fill: "#ef4444", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -12 -6 L -26 -18", stroke: coat, strokeWidth: "5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-27", cy: "-19", r: "3.5", fill: "#fde68a", stroke: dark, strokeWidth: "1.6" })), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 12 -6 L 24 6", stroke: coat, strokeWidth: "5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "-20", r: "12", fill: "#fde68a", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -13 -24 C -13 -36 11 -36 13 -24 Z", fill: coat, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 -24 L 20 -22 L 12 -19 Z", fill: "#fbbf24", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-4", cy: "-20", r: "2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "4.5", cy: "-20", r: "2", fill: dark }), renderMouth(0, -15, 7)));
+      })(), kind === "vuur" && (() => {
+        const outerFlame = ["#f97316", "#ef4444", "#f59e0b", "#fb7185", "#ea580c"][vIdx];
+        const scaleY = 1 + open * 0.28;
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -36 30 L 0 -36 L 36 30 M 0 -36 L 0 -14", fill: "none", stroke: "#64748b", strokeWidth: "2.6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -24 28 L 24 22 M -24 22 L 24 28", stroke: "#92400e", strokeWidth: "4.5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "-4", rx: "16", ry: "11", fill: "#334155", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -12 -12 Q 0 -18 12 -12", fill: "none", stroke: "#94a3b8", strokeWidth: "2.4" }))), /* @__PURE__ */ react_shim_default.createElement(
+          "g",
+          {
+            "data-anchor": "jaw",
+            "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`,
+            transform: `translate(0, 22) scale(1, ${scaleY.toFixed(2)}) rotate(${(jawDeg * 0.4).toFixed(1)}) translate(0, -22)`
+          },
+          /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 0 0 C -9 6 -16 12 -14 20 C -12 26 12 26 14 20 C 16 12 9 6 0 0 Z", fill: outerFlame, stroke: dark, strokeWidth: "2" }),
+          /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 0 7 C -5 11 -8 15 -7 20 C -6 24 6 24 7 20 C 8 15 5 11 0 7 Z", fill: "#fde047" })
+        ));
+      })(), kind === "gijs" && (() => {
+        const shirt = ["#0ea5e9", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"][vIdx];
+        const hoopDeg = talking ? tick * 160 % 360 : 0;
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("g", { transform: "translate(-20, 0)" }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -9 -8 L 9 -8 L 11 12 L -11 12 Z", fill: shirt, stroke: dark, strokeWidth: "2.1" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -5 12 L -12 29 M 5 12 L 12 28", stroke: dark, strokeWidth: "2.8", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 8 -4 L 28 8", stroke: dark, strokeWidth: "2.4", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-20", cy: "-20", r: "10.5", fill: "#fde68a", stroke: dark, strokeWidth: "2.1" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-23", cy: "-21", r: "1.8", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-16", cy: "-21", r: "1.8", fill: dark }), renderMouth(-20, -15, 6)), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, hoopDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "20", cy: "8", r: "19", fill: "none", stroke: "#d97706", strokeWidth: "3.5" }), /* @__PURE__ */ react_shim_default.createElement("line", { x1: "1", y1: "8", x2: "39", y2: "8", stroke: "#fbbf24", strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("line", { x1: "20", y1: "-11", x2: "20", y2: "27", stroke: "#fbbf24", strokeWidth: "1.6" })));
+      })(), kind === "lam" && (() => {
+        const wool = ["#f8fafc", "#fef3c7", "#f1f5f9", "#fae8ff", "#ecfeff"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -14 14 L -15 30 M -5 14 L -5 30 M 7 14 L 7 30 M 14 14 L 15 30", stroke: dark, strokeWidth: "2.8", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -20 0 L -33 6", stroke: wool, strokeWidth: "6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -20 0 L -33 6", stroke: dark, strokeWidth: "2", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement(
+          "path",
+          {
+            d: "M -22 -4 C -26 -16 -10 -20 -2 -13 C 6 -20 20 -16 18 -4 C 24 5 18 17 8 15 C 0 19 -10 19 -16 15 C -26 17 -28 5 -22 -4 Z",
+            fill: wool,
+            stroke: dark,
+            strokeWidth: "2.2"
+          }
+        ), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "12", cy: "-12", rx: "6", ry: "2.6", transform: "rotate(-25 12 -12)", fill: "#fda4af", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "20", cy: "-7", rx: "10", ry: "8", fill: "#334155", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "22", cy: "-9", r: "2", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "22.5", cy: "-9", r: "1", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg, jawDrop * 0.4) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "23", cy: "-2", rx: "5", ry: 1.5 + open * 2.5, fill: "#fda4af", stroke: dark, strokeWidth: "1.4" }))));
+      })(), kind === "kees" && (() => {
+        const smock = ["#2563eb", "#0d9488", "#7c3aed", "#ea580c", "#16a34a"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -13 -8 L 13 -8 L 16 10 L -16 10 Z", fill: smock, stroke: dark, strokeWidth: "2.1" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -13 10 L -14 25 L -3 25 L 0 15 L 3 25 L 14 25 L 13 10 Z", fill: "#475569", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -18 30 C -20 24 -3 24 -3 30 Z", fill: "#facc15", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, -Math.abs(limbDeg)) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 3 30 C 3 24 20 24 18 30 Z", fill: "#facc15", stroke: dark, strokeWidth: "2" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "-20", r: "11.5", fill: "#fde68a", stroke: dark, strokeWidth: "2.1" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -12 -24 C -10 -34 10 -34 12 -24 L 17 -22", fill: smock, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-4", cy: "-20", r: "1.9", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "4", cy: "-20", r: "1.9", fill: dark }), renderMouth(0, -15, 7)));
+      })(), kind === "bok" && (() => {
+        const coat = ["#cbd5e1", "#d6d3d1", "#a8a29e", "#fde68a", "#94a3b8"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -18 12 L -19 30 M -9 12 L -9 30 M 8 12 L 8 30 M 15 12 L 16 30", stroke: dark, strokeWidth: "2.6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -22 -4 L -31 -14", stroke: coat, strokeWidth: "4.5", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -22 -4 L 14 -6 L 17 12 L -20 12 Z", fill: coat, stroke: dark, strokeWidth: "2.2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 14 -14 C 8 -30 -8 -32 -14 -20", fill: "none", stroke: "#b45309", strokeWidth: "3.5", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 18 -14 C 12 -28 -2 -30 -8 -18", fill: "none", stroke: "#d97706", strokeWidth: "2.6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 10 -14 L 30 -7 L 27 1 L 10 -1 Z", fill: coat, stroke: dark, strokeWidth: "2.1", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "19", cy: "-9", r: "2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg, jawDrop * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 18 0 L 28 0 L 24 3 L 18 2 Z", fill: coat, stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 24 1 L 27 13 L 20 1", fill: coat, stroke: dark, strokeWidth: "1.8", strokeLinejoin: "round" }))));
+      })(), kind === "weide" && (() => {
+        const spot = ["#1e293b", "#92400e", "#78350f", "#334155", "#b45309"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -56 22 Q 0 16 56 22", fill: "none", stroke: "#10b981", strokeWidth: "3" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.6) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 28 22 L 29 0 L 33 0 L 34 22 Z", fill: "#92400e", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 31 -2 L 20 -22 M 31 -2 L 31 -25 M 31 -2 L 42 -20", stroke: "#10b981", strokeWidth: "2.4", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -28 -16 L -35 -23 M 4 -16 L 11 -23", stroke: "#fde68a", strokeWidth: "3.2", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("rect", { x: "-28", y: "-16", width: "32", height: "24", rx: "8", fill: "#f8fafc", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-20", cy: "-8", r: "5", fill: spot }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-4", cy: "-4", r: "4", fill: spot }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-19", cy: "-7", r: "2", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-5", cy: "-7", r: "2", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg * 0.5, jawDrop * 0.55) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "-12", cy: "8", rx: "13", ry: "7", fill: "#fda4af", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-16", cy: "7", r: "1.5", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-8", cy: "7", r: "1.5", fill: dark }))));
+      })(), kind === "does" && (() => {
+        const fur = ["#d97706", "#92400e", "#cbd5e1", "#ea580c", "#a16207"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -18 14 L -19 30 M -9 14 L -9 30 M 7 14 L 7 30 M 14 14 L 15 30", stroke: dark, strokeWidth: "2.8", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 1.2) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -22 0 Q -38 -14 -30 -22", fill: "none", stroke: fur, strokeWidth: "6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -22 0 Q -38 -14 -30 -22", fill: "none", stroke: dark, strokeWidth: "2", strokeLinecap: "round" })), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -23 -4 C -17 -11 8 -11 16 -4 C 20 5 18 15 12 15 L -19 15 C -25 15 -27 5 -23 -4 Z", fill: fur, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "17", cy: "-9", r: "10.5", fill: fur, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 22 -11 L 33 -10 L 31 -2 L 22 -2 Z", fill: fur, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "32", cy: "-8", r: "2.4", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 12 -12 C 7 -4 9 4 15 2", fill: "#78350f", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "20", cy: "-11", r: "2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg, jawDrop * 0.45) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 20 -2 L 30 -2 L 28 2 L 20 1 Z", fill: fur, stroke: dark, strokeWidth: "1.6" }), open > 0.08 && /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "26", cy: 2 + open * 3, rx: "2.4", ry: 1.5 + open * 2.5, fill: "#fb7185" }))));
+      })(), kind === "hok" && (() => {
+        const roof = ["#ef4444", "#f97316", "#3b82f6", "#10b981", "#a855f7"][vIdx];
+        const wall = ["#fcd34d", "#fed7aa", "#e2e8f0", "#fde68a", "#fbcfe8"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.35) }, /* @__PURE__ */ react_shim_default.createElement("rect", { x: "-26", y: "-4", width: "52", height: "33", rx: "3", fill: wall, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -36 -4 L 0 -33 L 36 -4 Z", fill: roof, stroke: dark, strokeWidth: "2.4", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -11 29 L -11 9 C -11 -1 11 -1 11 9 L 11 29 Z", fill: "#0f172a", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg * 0.8) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: 18 - open * 4, r: "6.5", fill: "#d97706", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-2.2", cy: 16.5 - open * 4, r: "1.2", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "2.2", cy: 16.5 - open * 4, r: "1.2", fill: "#fff" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 18 24 L 32 24 L 29 30 L 21 30 Z", fill: "#38bdf8", stroke: dark, strokeWidth: "1.8" })));
+      })(), kind === "duif" && (() => {
+        const wingCol = ["#f8fafc", "#bae6fd", "#fde68a", "#e9d5ff", "#fecdd3"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -34 26 Q 0 22 34 28", fill: "none", stroke: "#10b981", strokeWidth: "2.6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 1.3) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -2 -2 C -16 -28 -36 -24 -40 -6 C -26 2 -12 4 -2 2 Z", fill: wingCol, stroke: dark, strokeWidth: "2.2" })), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -18 6 C -10 -4 10 -4 18 4 C 14 15 -6 17 -18 6 Z", fill: wingCol, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-16,6 -31,2 -29,14", fill: wingCol, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "17", cy: "-2", r: "7.5", fill: wingCol, stroke: dark, strokeWidth: "2.1" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "19", cy: "-4", r: "1.8", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "23,-5 32,-3 23,-1", fill: "#f59e0b", stroke: dark, strokeWidth: "1.2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg * 1.2) }, /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "23,-1 31,2 23,2", fill: "#d97706", stroke: dark, strokeWidth: "1.2" }))));
+      })(), kind === "schapen" && (() => {
+        const fleece = ["#f8fafc", "#fef3c7", "#e2e8f0", "#fae8ff", "#ecfeff"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -56 24 Q -18 14 20 22 T 56 20", fill: "none", stroke: "#10b981", strokeWidth: "2.4" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.6) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "-26", cy: "4", rx: "14", ry: "9", fill: fleece, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-14", cy: "2", r: "5", fill: "#334155", stroke: dark, strokeWidth: "1.6" })), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "24", cy: "2", rx: "13", ry: "8.5", fill: fleece, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "35", cy: "0", r: "4.8", fill: "#334155", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "0", cy: "10", rx: "17", ry: "10.5", fill: fleece, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "15", cy: "6", r: "6.5", fill: "#334155", stroke: dark, strokeWidth: "1.8" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "17", cy: "4.5", r: "1.4", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg, jawDrop * 0.35) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "19", cy: "9", rx: "3.5", ry: 1.2 + open * 1.8, fill: "#fda4af" }))));
+      })(), kind === "vis" && (() => {
+        const scales = ["#06b6d4", "#f97316", "#ec4899", "#eab308", "#10b981"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 1.3) }, /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-22,0 -40,-14 -35,0 -40,14", fill: "#fbbf24", stroke: dark, strokeWidth: "2", strokeLinejoin: "round" })), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -24 0 Q -6 -22 24 0 Q -6 22 -24 0 Z", fill: scales, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "12", cy: "-4", r: "2.6", fill: "#fff", stroke: dark, strokeWidth: "1.4" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "12.6", cy: "-4", r: "1.2", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg) }, /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "21", cy: "3", rx: "3.5", ry: 1.2 + open * 2.5, fill: "#fb7185", stroke: dark, strokeWidth: "1.4" })));
+      })(), kind === "auto" && (() => {
+        const paint = ["#ef4444", "#3b82f6", "#eab308", "#10b981", "#a855f7"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.3) }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -32 12 L -28 -2 L -16 -16 L 14 -16 L 26 -2 L 32 12 Z", fill: paint, stroke: dark, strokeWidth: "2.2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -14 -12 L 12 -12 L 20 -2 L -22 -2 Z", fill: "#bae6fd", stroke: dark, strokeWidth: "1.6" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, talking ? tick * 200 % 360 : 0) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-18", cy: "14", r: "8", fill: "#334155", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("line", { x1: "-23", y1: "14", x2: "-13", y2: "14", stroke: "#cbd5e1", strokeWidth: "2" })), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "18", cy: "14", r: "8", fill: "#334155", stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "18", cy: "14", r: "3", fill: "#cbd5e1" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "jaw", "data-anchor-xy": `${rig.jaw[0]},${rig.jaw[1]}`, transform: pivotRot(rig.jaw, jawDeg * 0.5, jawDrop * 0.4) }, /* @__PURE__ */ react_shim_default.createElement("rect", { x: "24", y: "4", width: "9", height: 3 + open * 3, rx: "1.5", fill: "#fde047", stroke: dark, strokeWidth: "1.4" })));
+      })(), kind === "boot" && (() => {
+        const hull = ["#b45309", "#2563eb", "#dc2626", "#0d9488", "#7c3aed"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("line", { x1: "0", y1: "10", x2: "0", y2: "-32", stroke: dark, strokeWidth: "2.6", strokeLinecap: "round" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.6) }, /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "0,-30 26,6 0,6", fill: "#f8fafc", stroke: dark, strokeWidth: "2", strokeLinejoin: "round" }), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-2,-24 -22,6 -2,6", fill: "#fde047", stroke: dark, strokeWidth: "1.8", strokeLinejoin: "round" })), /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-32,10 32,10 22,25 -22,25", fill: hull, stroke: dark, strokeWidth: "2.2", strokeLinejoin: "round" }), renderMouth(14, 17, 7));
+      })(), kind === "boom" && (() => {
+        const leaf = ["#16a34a", "#10b981", "#65a30d", "#059669", "#d97706"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", null, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -8 30 L -5 0 L 5 0 L 8 30 Z", fill: "#92400e", stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot(rig.limb, limbDeg * 0.5) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-14", cy: "-8", r: "14", fill: leaf, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "14", cy: "-8", r: "14", fill: leaf, stroke: dark, strokeWidth: "2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "-18", r: "17", fill: leaf, stroke: dark, strokeWidth: "2.2" })), /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.4) }, /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-3.5", cy: "8", r: "1.6", fill: "#fff" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "3.5", cy: "8", r: "1.6", fill: "#fff" }), renderMouth(0, 14, 6)));
+      })(), kind === "zon" && (() => {
+        const orb = ["#facc15", "#fb923c", "#f472b6", "#38bdf8", "#a3e635"][vIdx];
+        return /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "head", "data-anchor-xy": `${rig.head[0]},${rig.head[1]}`, transform: pivotRot(rig.head, headDeg * 0.6) }, /* @__PURE__ */ react_shim_default.createElement("g", { "data-anchor": "limb", "data-anchor-xy": `${rig.limb[0]},${rig.limb[1]}`, transform: pivotRot([0, 0], limbDeg) }, [0, 45, 90, 135, 180, 225, 270, 315].map((deg) => /* @__PURE__ */ react_shim_default.createElement("line", { key: deg, x1: "0", y1: "-26", x2: "0", y2: "-34", stroke: orb, strokeWidth: "3", strokeLinecap: "round", transform: `rotate(${deg})` }))), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "0", cy: "0", r: "22", fill: orb, stroke: dark, strokeWidth: "2.2" }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "-7", cy: "-4", r: "2.4", fill: dark }), /* @__PURE__ */ react_shim_default.createElement("circle", { cx: "7", cy: "-4", r: "2.4", fill: dark }), renderMouth(0, 6, 9));
+      })(), (showAnchors || talking) && /* @__PURE__ */ react_shim_default.createElement("g", { className: "svg-anchor-pins", opacity: "0.85" }, [
+        ["head", rig.head, "#38bdf8"],
+        ["jaw", rig.jaw, "#fbbf24"],
+        ["limb", rig.limb, "#a855f7"]
+      ].map(([name, [ax, ay], col]) => /* @__PURE__ */ react_shim_default.createElement("g", { key: name, transform: `translate(${ax}, ${ay})` }, /* @__PURE__ */ react_shim_default.createElement("circle", { r: "3.4", fill: "#0f172a", stroke: col, strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("circle", { r: "1.3", fill: col })))))
+    );
   };
   var CellSvgUnderlay = ({
     word,
@@ -866,8 +1082,18 @@
     const fillProgress = Math.min(1, Math.max(0.25, (effectiveAliveness - 0.15) / 0.5));
     const motionAmp = Math.min(1.6, Math.max(0.2, effectiveAliveness - 0.1 + goldenEvolution * 0.7));
     const w = word.toLowerCase();
-    if (genSeed !== void 0) {
-      return /* @__PURE__ */ react_shim_default.createElement(GeneratedCreature, { word: w, seed: genSeed, talking, tick: animTick, lit: isTarget ? goldenEvolution : 0 });
+    if (genSeed !== void 0 || anmFigureMode === "vector") {
+      return /* @__PURE__ */ react_shim_default.createElement(
+        GeneratedCreature,
+        {
+          word: w,
+          seed: genSeed ?? 1,
+          talking,
+          tick: animTick,
+          lit: isTarget ? goldenEvolution : 0,
+          showAnchors: isHovered
+        }
+      );
     }
     const LEESPLANK_WORD_ALIASES = {
       a: "aap",
@@ -3598,9 +3824,7 @@
       let after = before;
       const nl = language === "nl";
       if (verdict === "wrong" || verdict === "another") {
-        do {
-          after = 1 + Math.floor(Math.random() * 999999999);
-        } while (after === before);
+        after = (before ?? 0) + 1;
         const next = { ...genFigures, [key]: after };
         setGenFigures(next);
         try {
