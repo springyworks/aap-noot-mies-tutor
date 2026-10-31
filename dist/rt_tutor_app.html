@@ -472,6 +472,12 @@
         fittsA: null,
         fittsB: null,
         fittsR2: null,
+        meanAz97IntegralId: 0,
+        meanPastelCurvatureId: 0,
+        meanSteeringThroughput: 0,
+        steerA: null,
+        steerB: null,
+        steerR2: null,
         virziP: 0.31,
         virziDiscovery: 0,
         betaAlpha: 1.38,
@@ -515,6 +521,28 @@
         }
       }
     }
+    const steerIds = trials.map((t) => t.az97IntegralId ?? t.distancePx / Math.max(24, t.widthPx));
+    const curvIds = trials.map((t) => t.pastelCurvatureId ?? (t.az97IntegralId ?? t.distancePx / Math.max(24, t.widthPx)) * 1.15);
+    const meanAz97IntegralId = Number(mean(steerIds).toFixed(3));
+    const meanPastelCurvatureId = Number(mean(curvIds).toFixed(3));
+    const meanSteeringThroughput = Number(mean(steerIds.map((sid, idx) => sid / Math.max(50, mts[idx]) * 1e3)).toFixed(3));
+    let steerA = null;
+    let steerB = null;
+    let steerR2 = null;
+    if (n >= 3) {
+      const ms = mean(steerIds);
+      const mm = meanMt;
+      const varS = mean(steerIds.map((v) => (v - ms) ** 2));
+      const varM = mean(mts.map((v) => (v - mm) ** 2));
+      if (varS > 1e-6) {
+        const covS = mean(steerIds.map((v, i) => (v - ms) * (mts[i] - mm)));
+        steerB = Math.round(covS / varS);
+        steerA = Math.round(mm - covS / varS * ms);
+        if (varM > 1e-6) {
+          steerR2 = Number(Math.min(1, Math.max(0, covS * covS / (varS * varM))).toFixed(3));
+        }
+      }
+    }
     const hits = trials.filter((t) => t.hit).length;
     const hitRate = Number((hits / n).toFixed(3));
     const missOrSlow = trials.filter((t) => !t.hit || t.mtMs > 2800).length;
@@ -553,6 +581,12 @@
       fittsA: a === null ? null : Math.round(a),
       fittsB: b === null ? null : Math.round(b),
       fittsR2: r2,
+      meanAz97IntegralId,
+      meanPastelCurvatureId,
+      meanSteeringThroughput,
+      steerA,
+      steerB,
+      steerR2,
       virziP,
       virziDiscovery,
       betaAlpha,
@@ -713,7 +747,15 @@
           rmsJerkPxMs3: 0,
           totalPathLengthPx: 0,
           directnessIndex: 1,
-          directionReversals: 0
+          directionReversals: 0,
+          az97IntegralId: 0,
+          az97NarrowingId: 0,
+          az97GoalPassingId: 0,
+          az97LocalSpeedWidthRatio: 0,
+          pastelCurvatureIntegralId: 0,
+          meanCurvatureRadPx: 0,
+          lateralSigmaPerpPx: 0,
+          kulikovEffectiveTunnelWidthPx: 180
         },
         hoverAnalytics,
         fft2D: {
@@ -741,6 +783,9 @@
     let prevVy = 0;
     let prevV = 0;
     let prevAcc = 0;
+    const stepDists = [];
+    const stepCurvatures = [];
+    let prevTheta = null;
     for (let i = 1; i < points.length; i++) {
       const p0 = points[i - 1];
       const p1 = points[i];
@@ -749,6 +794,20 @@
       const dy = p1.y - p0.y;
       const dist = Math.hypot(dx, dy);
       totalPath += dist;
+      stepDists.push(dist);
+      if (dist > 0.5) {
+        const theta = Math.atan2(dy, dx);
+        if (prevTheta !== null) {
+          let dTheta = Math.abs(theta - prevTheta);
+          if (dTheta > Math.PI) dTheta = 2 * Math.PI - dTheta;
+          stepCurvatures.push(dTheta / dist);
+        } else {
+          stepCurvatures.push(0);
+        }
+        prevTheta = theta;
+      } else {
+        stepCurvatures.push(0);
+      }
       const v = p1.v;
       sumV += v;
       if (v > peakV) peakV = v;
@@ -769,6 +828,34 @@
     const lastPt = points[points.length - 1];
     const netDisp = Math.hypot(lastPt.x - firstPt.x, lastPt.y - firstPt.y);
     const directness = totalPath > 1 ? Number(Math.min(1, netDisp / totalPath).toFixed(3)) : 1;
+    const chordDx = lastPt.x - firstPt.x;
+    const chordDy = lastPt.y - firstPt.y;
+    const chordLen = Math.max(1, Math.hypot(chordDx, chordDy));
+    const perpDists = points.map((p) => ((p.x - firstPt.x) * -chordDy + (p.y - firstPt.y) * chordDx) / chordLen);
+    const meanPerp = perpDists.reduce((s, v) => s + v, 0) / perpDists.length;
+    const sigmaPerp = Math.sqrt(perpDists.reduce((s, v) => s + (v - meanPerp) ** 2, 0) / perpDists.length);
+    const kulikovWePerp = Math.max(24, Number((4.133 * sigmaPerp).toFixed(1)));
+    const W1 = 340;
+    const W2 = 170;
+    let az97Integral = 0;
+    let pastelIntegral = 0;
+    let sCum = 0;
+    const sTot = Math.max(1, totalPath);
+    const lambdaCurv = 2.4;
+    for (let i = 0; i < stepDists.length; i++) {
+      const ds = stepDists[i];
+      sCum += ds;
+      const wLocal = W1 + (W2 - W1) * (sCum / sTot);
+      const dId = ds / Math.max(16, wLocal);
+      az97Integral += dId;
+      const kappa = stepCurvatures[i] || 0;
+      pastelIntegral += dId * (1 + lambdaCurv * Math.cbrt(kappa));
+    }
+    const A = Math.max(netDisp, totalPath * 0.65);
+    const az97Narrowing = A / (W2 - W1) * Math.log(W2 / W1);
+    const az97GoalPassing = Math.log2(A / W2 + 1);
+    const az97LocalSpeedWidth = lastPt.v * 1e3 / W2;
+    const meanCurv = stepCurvatures.length > 0 ? stepCurvatures.reduce((s, v) => s + v, 0) / stepCurvatures.length : 0;
     const kinematics = {
       instantVelocityPxMs: lastPt.v,
       meanVelocityPxMs: Number((sumV / count).toFixed(3)),
@@ -777,7 +864,15 @@
       rmsJerkPxMs3: Number(Math.sqrt(sumJerkSq / count).toFixed(5)),
       totalPathLengthPx: Math.round(totalPath),
       directnessIndex: directness,
-      directionReversals: reversals
+      directionReversals: reversals,
+      az97IntegralId: Number(az97Integral.toFixed(3)),
+      az97NarrowingId: Number(az97Narrowing.toFixed(3)),
+      az97GoalPassingId: Number(az97GoalPassing.toFixed(3)),
+      az97LocalSpeedWidthRatio: Number(az97LocalSpeedWidth.toFixed(2)),
+      pastelCurvatureIntegralId: Number(pastelIntegral.toFixed(3)),
+      meanCurvatureRadPx: Number(meanCurv.toFixed(4)),
+      lateralSigmaPerpPx: Number(sigmaPerp.toFixed(1)),
+      kulikovEffectiveTunnelWidthPx: kulikovWePerp
     };
     const slice = points.slice(-64);
     const N = slice.length;
@@ -3684,7 +3779,10 @@
           throughputBitsPerS: Number((id2d / mtMs * 1e3).toFixed(3)),
           hickBits: Number(Math.log2(currentRound.options.length + 1).toFixed(3)),
           endpointDxPx: Math.round(shotX - (rect.left + rect.width / 2)),
-          complexity
+          complexity,
+          az97IntegralId: liveDerivedData.kinematics.az97IntegralId || Number((D / W).toFixed(3)),
+          pastelCurvatureId: liveDerivedData.kinematics.pastelCurvatureIntegralId || Number((D / W * 1.12).toFixed(3)),
+          kulikovWePerpPx: liveDerivedData.kinematics.kulikovEffectiveTunnelWidthPx
         };
         usabilityTrialsRef.current.push(trial);
         if (usabilityTrialsRef.current.length > 200) usabilityTrialsRef.current.shift();
@@ -4298,7 +4396,7 @@
             /* @__PURE__ */ react_shim_default.createElement("div", null, lbl),
             /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] opacity-75" }, sub)
           );
-        }))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "1. \u{1F3AF} Prof. Fitts (1954) \xB7 Welford (1968) \xB7 MacKenzie-Buxton (1992) \xB7 Tillman"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "2D Law: ID = log\u2082(\u221A((D/W)\xB2 + \u03B7(D/H)\xB2) + 1) \xB7 Welford: We = \u221A(2\u03C0e)\xB7\u03C3x = 4.133\u03C3x"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Trials (n) / Hit-rate:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white font-bold" }, u.trials, " trials \xB7 ", (u.hitRate * 100).toFixed(1), "% hit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Mean ID\u2082D / Mean MT:"), /* @__PURE__ */ react_shim_default.createElement("span", null, u.meanId.toFixed(2), " bit \xB7 ", u.meanMtMs, " ms")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Shannon Throughput (TP):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, u.meanThroughput.toFixed(2), " bit/s")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Welford \u03C3x / Eff. Width We:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, "\u03C3x=", u.sigmaDxPx === null ? "\u2014" : `${u.sigmaDxPx}px`, " \u2192 We=", u.effectiveWidthPx === null ? "\u2014" : `${u.effectiveWidthPx}px`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Welford Effective IDe / TPe:"), /* @__PURE__ */ react_shim_default.createElement("span", null, u.effectiveIdBits === null ? "\u2014" : `${u.effectiveIdBits} bit`, " \xB7 ", u.effectiveThroughputBitsPerS === null ? "\u2014" : `${u.effectiveThroughputBitsPerS} bit/s`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Regressie MT = a + b\xB7ID:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, u.fittsA === null ? "wacht op \u22653 kliks" : `${u.fittsA} + ${u.fittsB}\xB7ID ms (R\xB2=${u.fittsR2 ?? "\u2014"})`))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "2. \u{1F6E4}\uFE0F Accot & Zhai (1997) Steering Law \xB7 Flash & Hogan (1985) Min-Jerk"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "Steering Tunnel: ID_steer = \u222B_C ds / W(s) \xB7 Min-Jerk: \u222B ||d\xB3x/dt\xB3||\xB2 dt"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Padlengte S / Tunnel ID_steer:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white" }, pathPx, " px \u2192 ", steerId, " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Snelheid v(t) / Piek v_max:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.kinematics.instantVelocityPxMs, " / ", liveDerivedData.kinematics.peakVelocityPxMs, " px/ms")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Versnelling a / RMS Jerk J:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, liveDerivedData.kinematics.meanAccelerationPxMs2, " px/ms\xB2 | ", liveDerivedData.kinematics.rmsJerkPxMs3, " px/ms\xB3")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Directheid / Submovement Rev:"), /* @__PURE__ */ react_shim_default.createElement("span", null, (liveDerivedData.kinematics.directnessIndex * 100).toFixed(0), "% direct | ", liveDerivedData.kinematics.directionReversals, "x omkering"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "3. \u{1F9E0} Prof. Hick (1952) \xB7 Hyman (1953) \xB7 Dr. Tullis (1988) Screen Entropy"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "RT = a + b\xB7\u03A3 p_i log\u2082(1/p_i + 1) + c\xB7(-\u03A3 (A_k/A) log\u2082(A_k/A))"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hick Uniform log\u2082(N+1) (N=", N, "):"), /* @__PURE__ */ react_shim_default.createElement("span", null, hickUniform.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hick-Hyman Shannon H(p_i):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, hickShannon.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Tullis Layout Entropy H_layout:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, tullisEntropy.toFixed(2), " bit (", N * 2, " visuele zones)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Voorspelde RT vs Actueel:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, rtPredMs, " ms pred vs ", elapsedTime, " ms nu"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "4. \u{1F9EA} Virzi (1992) \xB7 Nielsen-Landauer \xB7 Caulton (2001) \xB7 Schmettow (2012)"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "Beta-Binomial: E[P(n)] = 1 - \u0393(\u03B1+\u03B2)\u0393(\u03B2+n) / [\u0393(\u03B2)\u0393(\u03B1+\u03B2+n)]"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Virzi Homogeen P(n) (p=", u.virziP, "):"), /* @__PURE__ */ react_shim_default.createElement("span", null, (u.virziDiscovery * 100).toFixed(1), "% ontdekt")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Schmettow Beta(\u03B1=", u.betaAlpha, ", \u03B2=", u.betaBeta, "):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, (u.schmettowBetaBinomial * 100).toFixed(1), "% E[P(n)]")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Caulton Subgroepen (M=3 strata):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, (u.caultonMultiGroupDiscovery * 100).toFixed(1), "% (", u.strataCounts.simple, "/", u.strataCounts.double, "/", u.strataCounts.all, ")")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Cel-Figuur Feedback [\u2717/\u2665/\u21BB]:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-purple-300" }, "\u2717:", fbWrong, " \xB7 \u2665:", fbNice, " \xB7 \u21BB:", fbAnother))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "5. \u{1F578}\uFE0F Prof. Harold Thimbleby (2007) Algebraic FSM & Markov Matrix Law"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "s_{t+1} = s_t\xB7B_k \xB7 Undo det(B_k) \u2260 0 \xB7 Cost C_use = \u03A3 \u03C0_i p_ij d_ij"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "FSM States (M) / Undo det(B_k):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400" }, "M=", N + 2, " \xB7 det(B_k)=1.00 (omkeerbaar)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Markov Verwachte Kosten C_use:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white font-bold" }, markovCost, " graaf-stappen (visits:", visits, ")")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hover Cel / Gouden Cel Dwell:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300" }, hoveredWord ? `"${hoveredWord}"` : "geen", " \xB7 ", liveDerivedData.hoverAnalytics.goldenCellDwellMs, "ms (Fase ", liveDerivedData.hoverAnalytics.goldenCellEvolutionStage, "/4)"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "6. \u{1F4C8} Fourier / Cooley-Tukey (1965) 2D Spatial-Temporal FFT Spectrum"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Dom. Freq (X / Y) @ fs=", liveDerivedData.fft2D.effectiveSampleRateHz, "Hz:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, "X:", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz \xB7 Y:", liveDerivedData.fft2D.dominantFrequencyYHz, "Hz")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Banden (Nav / Scan / Tremor):"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.lowFreqMacroNavPower.toFixed(2), " / ", liveDerivedData.fft2D.midFreqScanPower.toFixed(2), " / ", liveDerivedData.fft2D.highFreqTremorPower.toFixed(2))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Entropie H_spec / Anisotropie:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.spectralEntropy, " \xB7 XY=", liveDerivedData.fft2D.anisotropyRatioXY)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Spectrale Signatuur:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold" }, liveDerivedData.fft2D.cognitiveLoadSignature)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-end gap-1 h-10 pt-1.5 border-t border-slate-800" }, liveDerivedData.fft2D.bins.map((b) => {
+        }))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "1. \u{1F3AF} Prof. Fitts (1954) \xB7 Welford (1968) \xB7 MacKenzie-Buxton (1992) \xB7 Tillman"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "2D Law: ID = log\u2082(\u221A((D/W)\xB2 + \u03B7(D/H)\xB2) + 1) \xB7 Welford: We = \u221A(2\u03C0e)\xB7\u03C3x = 4.133\u03C3x"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Trials (n) / Hit-rate:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white font-bold" }, u.trials, " trials \xB7 ", (u.hitRate * 100).toFixed(1), "% hit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Mean ID\u2082D / Mean MT:"), /* @__PURE__ */ react_shim_default.createElement("span", null, u.meanId.toFixed(2), " bit \xB7 ", u.meanMtMs, " ms")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Shannon Throughput (TP):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, u.meanThroughput.toFixed(2), " bit/s")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Welford \u03C3x / Eff. Width We:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, "\u03C3x=", u.sigmaDxPx === null ? "\u2014" : `${u.sigmaDxPx}px`, " \u2192 We=", u.effectiveWidthPx === null ? "\u2014" : `${u.effectiveWidthPx}px`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Welford Effective IDe / TPe:"), /* @__PURE__ */ react_shim_default.createElement("span", null, u.effectiveIdBits === null ? "\u2014" : `${u.effectiveIdBits} bit`, " \xB7 ", u.effectiveThroughputBitsPerS === null ? "\u2014" : `${u.effectiveThroughputBitsPerS} bit/s`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Regressie MT = a + b\xB7ID:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, u.fittsA === null ? "wacht op \u22653 kliks" : `${u.fittsA} + ${u.fittsB}\xB7ID ms (R\xB2=${u.fittsR2 ?? "\u2014"})`))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-emerald-700/60 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "2. \u{1F6E4}\uFE0F Accot & Zhai (ACM CHI 1997) \u201CBeyond Fitts\u2019 Law\u201D + Pastel (2006) & Kulikov (2005)"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "CHI'97 Eq.4-9: ds/dt = W(s)/\u03C4 \xB7 ID_C = \u222B_C ds/W(s) \xB7 Pastel'06: \u222B_C (1+\u03BB\u03BA^\u2153)/W(s) ds"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "CHI'97 Line-Integral \u222B ds/W(s):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, "nu: ", liveDerivedData.kinematics.az97IntegralId, " bit \xB7 \xD8: ", u.meanAz97IntegralId.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "CHI'97 Narrowing Funnel / Goal:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white" }, "conisch: ", liveDerivedData.kinematics.az97NarrowingId, " bit \xB7 poort: ", liveDerivedData.kinematics.az97GoalPassingId, " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "CHI'97 Diff. Law (ds/dt)/W(s) & IP:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-300" }, liveDerivedData.kinematics.az97LocalSpeedWidthRatio, " bit/s \xB7 IP_steer: ", u.meanSteeringThroughput.toFixed(2), " bit/s")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Pastel'06 Curvature \u222B(1+\u03BB\u03BA^\u2153)/W:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, liveDerivedData.kinematics.pastelCurvatureIntegralId, " bit (\u03BA\u0304=", liveDerivedData.kinematics.meanCurvatureRadPx, " rad/px)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Kulikov-MacKenzie'05 We_\u22A5 (4.13\u03C3_\u22A5):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-purple-300" }, "\u03C3_\u22A5=", liveDerivedData.kinematics.lateralSigmaPerpPx, "px \u2192 We_\u22A5=", liveDerivedData.kinematics.kulikovEffectiveTunnelWidthPx, "px")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Steering Regressie T = a + b\xB7\u222Bds/W:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, u.steerA === null ? "wacht op \u22653 kliks" : `${u.steerA} + ${u.steerB}\xB7ID_C ms (R\xB2=${u.steerR2 ?? "\u2014"})`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between border-t border-slate-800/80 pt-1" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Flash-Hogan (1985) v / a / Jerk:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.kinematics.instantVelocityPxMs, " px/ms | ", liveDerivedData.kinematics.rmsJerkPxMs3, " px/ms\xB3")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Padlengte S / Directheid / Rev:"), /* @__PURE__ */ react_shim_default.createElement("span", null, pathPx, "px \xB7 ", (liveDerivedData.kinematics.directnessIndex * 100).toFixed(0), "% \xB7 ", liveDerivedData.kinematics.directionReversals, "x"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "3. \u{1F9E0} Prof. Hick (1952) \xB7 Hyman (1953) \xB7 Dr. Tullis (1988) Screen Entropy"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "RT = a + b\xB7\u03A3 p_i log\u2082(1/p_i + 1) + c\xB7(-\u03A3 (A_k/A) log\u2082(A_k/A))"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hick Uniform log\u2082(N+1) (N=", N, "):"), /* @__PURE__ */ react_shim_default.createElement("span", null, hickUniform.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hick-Hyman Shannon H(p_i):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, hickShannon.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Tullis Layout Entropy H_layout:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, tullisEntropy.toFixed(2), " bit (", N * 2, " visuele zones)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Voorspelde RT vs Actueel:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, rtPredMs, " ms pred vs ", elapsedTime, " ms nu"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "4. \u{1F9EA} Virzi (1992) \xB7 Nielsen-Landauer \xB7 Caulton (2001) \xB7 Schmettow (2012)"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "Beta-Binomial: E[P(n)] = 1 - \u0393(\u03B1+\u03B2)\u0393(\u03B2+n) / [\u0393(\u03B2)\u0393(\u03B1+\u03B2+n)]"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Virzi Homogeen P(n) (p=", u.virziP, "):"), /* @__PURE__ */ react_shim_default.createElement("span", null, (u.virziDiscovery * 100).toFixed(1), "% ontdekt")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Schmettow Beta(\u03B1=", u.betaAlpha, ", \u03B2=", u.betaBeta, "):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, (u.schmettowBetaBinomial * 100).toFixed(1), "% E[P(n)]")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Caulton Subgroepen (M=3 strata):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, (u.caultonMultiGroupDiscovery * 100).toFixed(1), "% (", u.strataCounts.simple, "/", u.strataCounts.double, "/", u.strataCounts.all, ")")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Cel-Figuur Feedback [\u2717/\u2665/\u21BB]:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-purple-300" }, "\u2717:", fbWrong, " \xB7 \u2665:", fbNice, " \xB7 \u21BB:", fbAnother))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "5. \u{1F578}\uFE0F Prof. Harold Thimbleby (2007) Algebraic FSM & Markov Matrix Law"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "s_{t+1} = s_t\xB7B_k \xB7 Undo det(B_k) \u2260 0 \xB7 Cost C_use = \u03A3 \u03C0_i p_ij d_ij"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "FSM States (M) / Undo det(B_k):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400" }, "M=", N + 2, " \xB7 det(B_k)=1.00 (omkeerbaar)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Markov Verwachte Kosten C_use:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white font-bold" }, markovCost, " graaf-stappen (visits:", visits, ")")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hover Cel / Gouden Cel Dwell:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300" }, hoveredWord ? `"${hoveredWord}"` : "geen", " \xB7 ", liveDerivedData.hoverAnalytics.goldenCellDwellMs, "ms (Fase ", liveDerivedData.hoverAnalytics.goldenCellEvolutionStage, "/4)"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "6. \u{1F4C8} Fourier / Cooley-Tukey (1965) 2D Spatial-Temporal FFT Spectrum"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Dom. Freq (X / Y) @ fs=", liveDerivedData.fft2D.effectiveSampleRateHz, "Hz:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, "X:", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz \xB7 Y:", liveDerivedData.fft2D.dominantFrequencyYHz, "Hz")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Banden (Nav / Scan / Tremor):"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.lowFreqMacroNavPower.toFixed(2), " / ", liveDerivedData.fft2D.midFreqScanPower.toFixed(2), " / ", liveDerivedData.fft2D.highFreqTremorPower.toFixed(2))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Entropie H_spec / Anisotropie:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.spectralEntropy, " \xB7 XY=", liveDerivedData.fft2D.anisotropyRatioXY)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Spectrale Signatuur:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold" }, liveDerivedData.fft2D.cognitiveLoadSignature)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-end gap-1 h-10 pt-1.5 border-t border-slate-800" }, liveDerivedData.fft2D.bins.map((b) => {
           const barH = Math.min(34, Math.max(3, Math.round(b.power2D * 190)));
           return /* @__PURE__ */ react_shim_default.createElement("div", { key: b.freqHz, className: "flex-1 flex flex-col items-center" }, /* @__PURE__ */ react_shim_default.createElement(
             "div",

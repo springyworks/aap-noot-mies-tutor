@@ -342,6 +342,9 @@ export interface UsabilityTrial {
   hickBits: number;
   endpointDxPx: number;
   complexity: WordComplexity;
+  az97IntegralId?: number;
+  pastelCurvatureId?: number;
+  kulikovWePerpPx?: number;
 }
 
 export interface UsabilitySummary {
@@ -358,6 +361,13 @@ export interface UsabilitySummary {
   fittsA: number | null;
   fittsB: number | null;
   fittsR2: number | null;
+  // ACM CHI 1997 Accot & Zhai ("Beyond Fitts' Law: Models for Trajectory-Based HCI Tasks") + 2005-2013 Extensions
+  meanAz97IntegralId: number;
+  meanPastelCurvatureId: number;
+  meanSteeringThroughput: number;
+  steerA: number | null;
+  steerB: number | null;
+  steerR2: number | null;
   virziP: number;
   virziDiscovery: number;
   betaAlpha: number;
@@ -389,6 +399,12 @@ const summarizeUsability = (trials: UsabilityTrial[]): UsabilitySummary => {
       fittsA: null,
       fittsB: null,
       fittsR2: null,
+      meanAz97IntegralId: 0,
+      meanPastelCurvatureId: 0,
+      meanSteeringThroughput: 0,
+      steerA: null,
+      steerB: null,
+      steerR2: null,
       virziP: 0.31,
       virziDiscovery: 0,
       betaAlpha: 1.38,
@@ -431,6 +447,31 @@ const summarizeUsability = (trials: UsabilityTrial[]): UsabilitySummary => {
       a = mm - b * mi;
       if (varM > 1e-6) {
         r2 = Number(Math.min(1, Math.max(0, (cov * cov) / (varI * varM))).toFixed(3));
+      }
+    }
+  }
+
+  // ACM CHI 1997 Accot & Zhai Trajectory Steering Law regression T_C = a_s + b_s * \int_C ds/W(s)
+  const steerIds = trials.map(t => t.az97IntegralId ?? (t.distancePx / Math.max(24, t.widthPx)));
+  const curvIds = trials.map(t => t.pastelCurvatureId ?? (t.az97IntegralId ?? (t.distancePx / Math.max(24, t.widthPx))) * 1.15);
+  const meanAz97IntegralId = Number(mean(steerIds).toFixed(3));
+  const meanPastelCurvatureId = Number(mean(curvIds).toFixed(3));
+  const meanSteeringThroughput = Number(mean(steerIds.map((sid, idx) => (sid / Math.max(50, mts[idx])) * 1000)).toFixed(3));
+
+  let steerA: number | null = null;
+  let steerB: number | null = null;
+  let steerR2: number | null = null;
+  if (n >= 3) {
+    const ms = mean(steerIds);
+    const mm = meanMt;
+    const varS = mean(steerIds.map(v => (v - ms) ** 2));
+    const varM = mean(mts.map(v => (v - mm) ** 2));
+    if (varS > 1e-6) {
+      const covS = mean(steerIds.map((v, i) => (v - ms) * (mts[i] - mm)));
+      steerB = Math.round(covS / varS);
+      steerA = Math.round(mm - (covS / varS) * ms);
+      if (varM > 1e-6) {
+        steerR2 = Number(Math.min(1, Math.max(0, (covS * covS) / (varS * varM))).toFixed(3));
       }
     }
   }
@@ -479,6 +520,12 @@ const summarizeUsability = (trials: UsabilityTrial[]): UsabilitySummary => {
     fittsA: a === null ? null : Math.round(a),
     fittsB: b === null ? null : Math.round(b),
     fittsR2: r2,
+    meanAz97IntegralId,
+    meanPastelCurvatureId,
+    meanSteeringThroughput,
+    steerA,
+    steerB,
+    steerR2,
     virziP,
     virziDiscovery,
     betaAlpha,
@@ -646,7 +693,15 @@ function computeDerivedHardData(
         rmsJerkPxMs3: 0,
         totalPathLengthPx: 0,
         directnessIndex: 1,
-        directionReversals: 0
+        directionReversals: 0,
+        az97IntegralId: 0,
+        az97NarrowingId: 0,
+        az97GoalPassingId: 0,
+        az97LocalSpeedWidthRatio: 0,
+        pastelCurvatureIntegralId: 0,
+        meanCurvatureRadPx: 0,
+        lateralSigmaPerpPx: 0,
+        kulikovEffectiveTunnelWidthPx: 180
       },
       hoverAnalytics,
       fft2D: {
@@ -665,7 +720,7 @@ function computeDerivedHardData(
     };
   }
 
-  // 1. Compute Kinematics over trajectory
+  // 1. Compute Kinematics & ACM CHI 1997 Accot-Zhai Trajectory Integrals over trajectory C
   let totalPath = 0;
   let sumV = 0;
   let peakV = 0;
@@ -676,6 +731,9 @@ function computeDerivedHardData(
   let prevVy = 0;
   let prevV = 0;
   let prevAcc = 0;
+  const stepDists: number[] = [];
+  const stepCurvatures: number[] = [];
+  let prevTheta: number | null = null;
 
   for (let i = 1; i < points.length; i++) {
     const p0 = points[i - 1];
@@ -685,6 +743,21 @@ function computeDerivedHardData(
     const dy = p1.y - p0.y;
     const dist = Math.hypot(dx, dy);
     totalPath += dist;
+    stepDists.push(dist);
+
+    if (dist > 0.5) {
+      const theta = Math.atan2(dy, dx);
+      if (prevTheta !== null) {
+        let dTheta = Math.abs(theta - prevTheta);
+        if (dTheta > Math.PI) dTheta = 2 * Math.PI - dTheta;
+        stepCurvatures.push(dTheta / dist);
+      } else {
+        stepCurvatures.push(0);
+      }
+      prevTheta = theta;
+    } else {
+      stepCurvatures.push(0);
+    }
 
     const v = p1.v;
     sumV += v;
@@ -711,6 +784,46 @@ function computeDerivedHardData(
   const netDisp = Math.hypot(lastPt.x - firstPt.x, lastPt.y - firstPt.y);
   const directness = totalPath > 1 ? Number(Math.min(1, netDisp / totalPath).toFixed(3)) : 1;
 
+  // Kulikov, MacKenzie & Stuerzlinger (ACM CHI 2005): Orthogonal dispersion \sigma_\perp from chord p0 -> pK
+  const chordDx = lastPt.x - firstPt.x;
+  const chordDy = lastPt.y - firstPt.y;
+  const chordLen = Math.max(1, Math.hypot(chordDx, chordDy));
+  const perpDists = points.map(p => ((p.x - firstPt.x) * (-chordDy) + (p.y - firstPt.y) * chordDx) / chordLen);
+  const meanPerp = perpDists.reduce((s, v) => s + v, 0) / perpDists.length;
+  const sigmaPerp = Math.sqrt(perpDists.reduce((s, v) => s + (v - meanPerp) ** 2, 0) / perpDists.length);
+  const kulikovWePerp = Math.max(24, Number((4.133 * sigmaPerp).toFixed(1)));
+
+  // ACM CHI 1997 Accot & Zhai ("Beyond Fitts' Law: Models for Trajectory-Based HCI Tasks"):
+  // Tapering funnel width W(s) from start search corridor W1 = 340px to target cell gate W2 = 170px
+  const W1 = 340;
+  const W2 = 170;
+  let az97Integral = 0;
+  let pastelIntegral = 0;
+  let sCum = 0;
+  const sTot = Math.max(1, totalPath);
+  const lambdaCurv = 2.4; // Pastel (CHI 2006) / Viviani curvature-radius power-law weight
+
+  for (let i = 0; i < stepDists.length; i++) {
+    const ds = stepDists[i];
+    sCum += ds;
+    const wLocal = W1 + (W2 - W1) * (sCum / sTot);
+    const dId = ds / Math.max(16, wLocal);
+    az97Integral += dId;
+    const kappa = stepCurvatures[i] || 0;
+    pastelIntegral += dId * (1 + lambdaCurv * Math.cbrt(kappa));
+  }
+
+  // Analytical Narrowing Conical Tunnel (Accot & Zhai 1997, Eq. 9): ID = [A / (W2 - W1)] * ln(W2 / W1)
+  const A = Math.max(netDisp, totalPath * 0.65);
+  const az97Narrowing = (A / (W2 - W1)) * Math.log(W2 / W1);
+  // Goal-Passing Task (Accot & Zhai 1997, Eq. 2): ID = log2(A / W2 + 1)
+  const az97GoalPassing = Math.log2(A / W2 + 1);
+  // Differential Law (Accot & Zhai 1997, Eq. 4): (ds/dt) / W(s) in bits/s (v is px/ms -> *1000 for px/s)
+  const az97LocalSpeedWidth = (lastPt.v * 1000) / W2;
+  const meanCurv = stepCurvatures.length > 0
+    ? stepCurvatures.reduce((s, v) => s + v, 0) / stepCurvatures.length
+    : 0;
+
   const kinematics: DerivedKinematics = {
     instantVelocityPxMs: lastPt.v,
     meanVelocityPxMs: Number((sumV / count).toFixed(3)),
@@ -719,7 +832,15 @@ function computeDerivedHardData(
     rmsJerkPxMs3: Number(Math.sqrt(sumJerkSq / count).toFixed(5)),
     totalPathLengthPx: Math.round(totalPath),
     directnessIndex: directness,
-    directionReversals: reversals
+    directionReversals: reversals,
+    az97IntegralId: Number(az97Integral.toFixed(3)),
+    az97NarrowingId: Number(az97Narrowing.toFixed(3)),
+    az97GoalPassingId: Number(az97GoalPassing.toFixed(3)),
+    az97LocalSpeedWidthRatio: Number(az97LocalSpeedWidth.toFixed(2)),
+    pastelCurvatureIntegralId: Number(pastelIntegral.toFixed(3)),
+    meanCurvatureRadPx: Number(meanCurv.toFixed(4)),
+    lateralSigmaPerpPx: Number(sigmaPerp.toFixed(1)),
+    kulikovEffectiveTunnelWidthPx: kulikovWePerp
   };
 
   // 2. Compute 2D Spatial-Temporal Spectral Decomposition (2D-FFT over last N=64 points)
@@ -4833,7 +4954,10 @@ export default function RTTutor() {
         throughputBitsPerS: Number(((id2d / mtMs) * 1000).toFixed(3)),
         hickBits: Number(Math.log2(currentRound.options.length + 1).toFixed(3)),
         endpointDxPx: Math.round(shotX - (rect.left + rect.width / 2)),
-        complexity
+        complexity,
+        az97IntegralId: liveDerivedData.kinematics.az97IntegralId || Number((D / W).toFixed(3)),
+        pastelCurvatureId: liveDerivedData.kinematics.pastelCurvatureIntegralId || Number(((D / W) * 1.12).toFixed(3)),
+        kulikovWePerpPx: liveDerivedData.kinematics.kulikovEffectiveTunnelWidthPx
       };
       usabilityTrialsRef.current.push(trial);
       if (usabilityTrialsRef.current.length > 200) usabilityTrialsRef.current.shift();
@@ -5697,29 +5821,61 @@ export default function RTTutor() {
               </div>
             </div>
 
-            {/* 2. Johnny Accot & Shumin Zhai Steering Law + Flash & Hogan Minimum-Jerk */}
-            <div className="rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1">
+            {/* 2. ACM CHI 1997 Accot & Zhai ("Beyond Fitts' Law: Models for Trajectory-Based HCI Tasks") + 2005-2013 Extensions */}
+            <div className="rounded-xl bg-slate-900/90 border border-emerald-700/60 p-2.5 space-y-1">
               <div className="text-amber-300 font-bold text-[10px] uppercase tracking-wide">
-                2. 🛤️ Accot & Zhai (1997) Steering Law · Flash & Hogan (1985) Min-Jerk
+                2. 🛤️ Accot & Zhai (ACM CHI 1997) &ldquo;Beyond Fitts&rsquo; Law&rdquo; + Pastel (2006) & Kulikov (2005)
               </div>
               <div className="text-[9px] text-slate-400">
-                Steering Tunnel: ID_steer = ∫_C ds / W(s) · Min-Jerk: ∫ ||d³x/dt³||² dt
+                CHI&apos;97 Eq.4-9: ds/dt = W(s)/τ · ID_C = ∫_C ds/W(s) · Pastel&apos;06: ∫_C (1+λκ^⅓)/W(s) ds
               </div>
               <div className="flex justify-between">
-                <span>Padlengte S / Tunnel ID_steer:</span>
-                <span className="text-white">{pathPx} px → {steerId} bit</span>
+                <span>CHI&apos;97 Line-Integral ∫ ds/W(s):</span>
+                <span className="text-emerald-400 font-bold">
+                  nu: {liveDerivedData.kinematics.az97IntegralId} bit · Ø: {u.meanAz97IntegralId.toFixed(2)} bit
+                </span>
               </div>
               <div className="flex justify-between">
-                <span>Snelheid v(t) / Piek v_max:</span>
-                <span>{liveDerivedData.kinematics.instantVelocityPxMs} / {liveDerivedData.kinematics.peakVelocityPxMs} px/ms</span>
+                <span>CHI&apos;97 Narrowing Funnel / Goal:</span>
+                <span className="text-white">
+                  conisch: {liveDerivedData.kinematics.az97NarrowingId} bit · poort: {liveDerivedData.kinematics.az97GoalPassingId} bit
+                </span>
               </div>
               <div className="flex justify-between">
-                <span>Versnelling a / RMS Jerk J:</span>
-                <span className="text-sky-300">{liveDerivedData.kinematics.meanAccelerationPxMs2} px/ms² | {liveDerivedData.kinematics.rmsJerkPxMs3} px/ms³</span>
+                <span>CHI&apos;97 Diff. Law (ds/dt)/W(s) & IP:</span>
+                <span className="text-emerald-300">
+                  {liveDerivedData.kinematics.az97LocalSpeedWidthRatio} bit/s · IP_steer: {u.meanSteeringThroughput.toFixed(2)} bit/s
+                </span>
               </div>
               <div className="flex justify-between">
-                <span>Directheid / Submovement Rev:</span>
-                <span>{(liveDerivedData.kinematics.directnessIndex * 100).toFixed(0)}% direct | {liveDerivedData.kinematics.directionReversals}x omkering</span>
+                <span>Pastel&apos;06 Curvature ∫(1+λκ^⅓)/W:</span>
+                <span className="text-sky-300">
+                  {liveDerivedData.kinematics.pastelCurvatureIntegralId} bit (κ̄={liveDerivedData.kinematics.meanCurvatureRadPx} rad/px)
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Kulikov-MacKenzie&apos;05 We_⊥ (4.13σ_⊥):</span>
+                <span className="text-purple-300">
+                  σ_⊥={liveDerivedData.kinematics.lateralSigmaPerpPx}px → We_⊥={liveDerivedData.kinematics.kulikovEffectiveTunnelWidthPx}px
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Steering Regressie T = a + b·∫ds/W:</span>
+                <span className="text-amber-200">
+                  {u.steerA === null ? 'wacht op ≥3 kliks' : `${u.steerA} + ${u.steerB}·ID_C ms (R²=${u.steerR2 ?? '—'})`}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-slate-800/80 pt-1">
+                <span>Flash-Hogan (1985) v / a / Jerk:</span>
+                <span>
+                  {liveDerivedData.kinematics.instantVelocityPxMs} px/ms | {liveDerivedData.kinematics.rmsJerkPxMs3} px/ms³
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Padlengte S / Directheid / Rev:</span>
+                <span>
+                  {pathPx}px · {(liveDerivedData.kinematics.directnessIndex * 100).toFixed(0)}% · {liveDerivedData.kinematics.directionReversals}x
+                </span>
               </div>
             </div>
 
