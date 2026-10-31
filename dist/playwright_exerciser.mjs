@@ -160,6 +160,94 @@ async function runTransponderAndSyntheticVerification() {
     9
   );
   console.log(`\u2705 8. Saved telemetry snapshot:`, JSON.parse(savedSnap.result?.content?.[0]?.text || "{}"));
+  const drillNow = Date.now();
+  const drillPacket = {
+    packetId: `dt_${drillNow}_ctrl_shift_alt_g`,
+    triggerSource: "CTRL_SHIFT_ALT_G",
+    timestamps: {
+      isoTimestamp: new Date(drillNow).toISOString(),
+      epochMs: drillNow,
+      performanceNowMs: 4821.37,
+      timezoneOffsetMin: -60,
+      sessionUptimeMs: 18420,
+      roundElapsedMs: 3200,
+      idleMs: 40,
+      firstGoldenHoverMs: 420
+    },
+    pointerAndDomDrillThrough: {
+      pointerX: 520,
+      pointerY: 410,
+      normalizedX: 0.406,
+      normalizedY: 0.512,
+      hoveredWordCell: "mies",
+      isGoldenCellUnderPointer: true,
+      domStackUnderPointer: [
+        { depth: 0, tagName: "button", id: null, className: "relative group overflow-hidden h-32", dataWord: "mies", rect: { x: 420, y: 340, w: 260, h: 160 } },
+        { depth: 1, tagName: "div", id: null, className: "grid grid-cols-2 lg:grid-cols-3", dataWord: null, rect: { x: 110, y: 340, w: 1060, h: 344 } }
+      ]
+    },
+    cognitiveAndPedagogicalState: {
+      curriculumMode: "aapnootmies",
+      anmFigureMode: "hybrid",
+      level: 1,
+      language: "nl",
+      roundTarget: "mies",
+      roundOptions: ["aap", "noot", "mies", "wim", "zus", "jet"],
+      streak: 3,
+      tutorEmotion: "RADIANT",
+      introspectionLevel: 2,
+      lastIntrospectionLog: 'Gouden Cel "mies" volledig tot bloei gekomen (Fase 4/4)!',
+      aliveness: 0.92,
+      hesitationIndex: 0.18,
+      baseThresholdMs: 1e4,
+      kineticMode: true,
+      pinholeEnabled: true
+    },
+    aiAugmentationState: {
+      activeConfig: {
+        hintThrottleMultiplier: 1,
+        kineticSpeedMultiplier: 1,
+        customEncouragementBanner: null,
+        focusPrefix: null,
+        lastUpdatedByAiAt: null
+      },
+      learnerFlowDiagnosis: "FLOW_MASTERY",
+      recommendedHintThrottleMultiplier: 1.25,
+      recommendedKineticSpeedMultiplier: 1.2,
+      recommendedNextTargetWords: ["wim", "weide", "vuur"]
+    }
+  };
+  const dtPost = await fetch(`${BASE_URL}/api/drill-through`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(drillPacket)
+  });
+  const dtPostJson = await dtPost.json();
+  console.log(`\u2705 9. Ctrl+Shift+Alt+G Drill-Through buffered to MCP server:`, dtPostJson);
+  const dtBufferRes = await callMcp(
+    "tools/call",
+    { name: "get_drill_through_buffer", arguments: { limit: 3 } },
+    10
+  );
+  const dtBufferObj = JSON.parse(dtBufferRes.result?.content?.[0]?.text || "{}");
+  console.log(
+    `\u2705 10. MCP get_drill_through_buffer verified: totalBuffered=${dtBufferObj.totalBufferedPackets}, latestPacketId="${dtBufferObj.latestRecord?.packet?.packetId}", flowDiagnosis="${dtBufferObj.latestRecord?.packet?.aiAugmentationState?.learnerFlowDiagnosis}"`
+  );
+  const augRes = await callMcp(
+    "tools/call",
+    {
+      name: "augment_learning_play",
+      arguments: {
+        hintThrottleMultiplier: 1.2,
+        kineticSpeedMultiplier: 1.15,
+        customEncouragementBanner: "Super-flow gedetecteerd! Poes Mies spint van trots \u2014 op naar Wim en Vuur!",
+        emotion: "WARM_PRIDE",
+        focusPrefix: "m"
+      }
+    },
+    11
+  );
+  console.log(`\u2705 11. External AI Dynamic Learning Augmentation dispatched:`, JSON.parse(augRes.result?.content?.[0]?.text || "{}"));
 }
 async function main() {
   await runTransponderAndSyntheticVerification();

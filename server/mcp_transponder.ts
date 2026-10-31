@@ -62,8 +62,17 @@ export interface TransponderCommand {
     | 'toggle_kinetic'
     | 'toggle_inspect'
     | 'toggle_leesplank_modal'
-    | 'trigger_introspection';
+    | 'trigger_introspection'
+    | 'trigger_drill_through'
+    | 'augment_learning_play';
   payload?: Record<string, unknown>;
+}
+
+export interface DrillThroughBufferedRecord {
+  bufferSequenceNumber: number;
+  serverReceivedIso: string;
+  serverReceivedEpochMs: number;
+  packet: Record<string, unknown>;
 }
 
 export interface TelemetrySnapshot {
@@ -135,8 +144,40 @@ const TELEMETRY_DIR = path.join(WORKSPACE_ROOT, 'telemetry_logs');
 
 let latestTelemetry: TelemetrySnapshot | null = null;
 let telemetryPacketsReceived = 0;
+let drillThroughSeq = 0;
+const drillThroughBuffer: DrillThroughBufferedRecord[] = [];
 const commandHistory: TransponderCommand[] = [];
 const sseClients = new Set<http.ServerResponse>();
+
+function appendToDrillThroughBuffer(packet: Record<string, unknown>): DrillThroughBufferedRecord {
+  const now = Date.now();
+  const record: DrillThroughBufferedRecord = {
+    bufferSequenceNumber: ++drillThroughSeq,
+    serverReceivedIso: new Date(now).toISOString(),
+    serverReceivedEpochMs: now,
+    packet
+  };
+  drillThroughBuffer.push(record);
+  if (drillThroughBuffer.length > 50) {
+    drillThroughBuffer.shift();
+  }
+  try {
+    fs.mkdirSync(TELEMETRY_DIR, { recursive: true });
+    fs.writeFileSync(
+      path.join(TELEMETRY_DIR, 'latest_drill_through.json'),
+      JSON.stringify(record, null, 2),
+      'utf-8'
+    );
+    fs.writeFileSync(
+      path.join(TELEMETRY_DIR, 'drill_through_buffer.json'),
+      JSON.stringify(drillThroughBuffer, null, 2),
+      'utf-8'
+    );
+  } catch {
+    // ignore disk write issues
+  }
+  return record;
+}
 
 function broadcastCommand(cmd: TransponderCommand): void {
   commandHistory.push(cmd);
@@ -231,7 +272,9 @@ function handleMcpRequest(req: JsonRpcRequest): Record<string, unknown> | null {
                     'toggle_kinetic',
                     'toggle_inspect',
                     'toggle_leesplank_modal',
-                    'trigger_introspection'
+                    'trigger_introspection',
+                    'trigger_drill_through',
+                    'augment_learning_play'
                   ]
                 },
                 mode: {
@@ -262,11 +305,74 @@ function handleMcpRequest(req: JsonRpcRequest): Record<string, unknown> | null {
           {
             name: 'save_telemetry_snapshot',
             description:
-              'Saves the latest telemetry + 2D-FFT snapshot to telemetry_logs/ on disk for offline Python/Ollama analysis.',
+              'Saves the latest telemetry + 2D-FFT snapshot to telemetry_logs/ on disk for offline analysis.',
             inputSchema: {
               type: 'object',
               properties: {
                 label: { type: 'string', description: 'Optional filename tag' }
+              }
+            }
+          },
+          {
+            name: 'get_drill_through_buffer',
+            description:
+              'Retrieves the timestamped Ctrl+Shift+Alt+G Drill-Through Context channel buffer (DOM hit-test stack under cursor, 120-event timeline, 2D-FFT spectrum, Golden Cell hover stage, and External AI learning augmentation recommendations).',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                limit: {
+                  type: 'number',
+                  description: 'Number of most recent drill-through records to return (default 5).'
+                }
+              }
+            }
+          },
+          {
+            name: 'trigger_drill_through',
+            description:
+              'Remotely triggers a Ctrl+Shift+Alt+G Drill-Through Context capture in the connected browser and pushes it into the MCP channel buffer.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                openModal: {
+                  type: 'boolean',
+                  description: 'Whether to open the JSON inspector modal in the browser UI.'
+                }
+              }
+            }
+          },
+          {
+            name: 'augment_learning_play',
+            description:
+              'External AI Co-Pilot hook: dynamically adjusts real-time learning-play scaffolding (hintThrottleMultiplier, kineticSpeedMultiplier, customEncouragementBanner, spokenEncouragement, emotion, focusPrefix).',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                hintThrottleMultiplier: {
+                  type: 'number',
+                  description: 'Multiplier for phonetic color hint delay (0.3 to 2.5; <1 scaffolds faster, >1 increases challenge).'
+                },
+                kineticSpeedMultiplier: {
+                  type: 'number',
+                  description: 'Multiplier for 2D Lissajous kinetic motion speed (0.2 to 2.5).'
+                },
+                customEncouragementBanner: {
+                  type: 'string',
+                  description: 'Live banner message from the External AI Co-Pilot displayed in the game UI.'
+                },
+                spokenEncouragement: {
+                  type: 'string',
+                  description: 'Optional positive encouragement spoken aloud by the tutor voice.'
+                },
+                emotion: {
+                  type: 'string',
+                  enum: VALID_EMOTIONS,
+                  description: 'One of the 18 strictly positive TutorEmotion expressions.'
+                },
+                focusPrefix: {
+                  type: 'string',
+                  description: 'Optional orthographic prefix focus.'
+                }
               }
             }
           }
@@ -425,6 +531,108 @@ function handleMcpRequest(req: JsonRpcRequest): Record<string, unknown> | null {
             {
               type: 'text',
               text: JSON.stringify({ saved: true, path: fullPath }, null, 2)
+            }
+          ]
+        }
+      };
+    }
+
+    if (toolName === 'get_drill_through_buffer') {
+      const limit = Math.max(1, Math.min(50, Number(args.limit || 5)));
+      const slice = drillThroughBuffer.slice(-limit);
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  totalBufferedPackets: drillThroughBuffer.length,
+                  returnedCount: slice.length,
+                  latestRecord: slice.length > 0 ? slice[slice.length - 1] : null,
+                  records: slice
+                },
+                null,
+                2
+              )
+            }
+          ]
+        }
+      };
+    }
+
+    if (toolName === 'trigger_drill_through') {
+      const cmd: TransponderCommand = {
+        id: `cmd_${Date.now()}_dt`,
+        timestamp: new Date().toISOString(),
+        action: 'trigger_drill_through',
+        payload: { openModal: Boolean(args.openModal) }
+      };
+      broadcastCommand(cmd);
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  triggered: true,
+                  deliveredToSseClients: sseClients.size,
+                  currentBufferCount: drillThroughBuffer.length,
+                  command: cmd
+                },
+                null,
+                2
+              )
+            }
+          ]
+        }
+      };
+    }
+
+    if (toolName === 'augment_learning_play') {
+      if (args.emotion && !VALID_EMOTIONS.includes(String(args.emotion) as TutorEmotion)) {
+        return {
+          jsonrpc: '2.0',
+          id: id ?? null,
+          result: {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: `Zero-Frustration Pedagogical Violation: "${String(args.emotion)}" is forbidden.`
+              }
+            ]
+          }
+        };
+      }
+      const cmd: TransponderCommand = {
+        id: `cmd_${Date.now()}_aug`,
+        timestamp: new Date().toISOString(),
+        action: 'augment_learning_play',
+        payload: args
+      };
+      broadcastCommand(cmd);
+      return {
+        jsonrpc: '2.0',
+        id: id ?? null,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  augmented: true,
+                  deliveredToSseClients: sseClients.size,
+                  command: cmd
+                },
+                null,
+                2
+              )
             }
           ]
         }
@@ -607,6 +815,68 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 3b. Ctrl+Shift+Alt+G Drill-Through Context Channel Buffer (`POST /api/drill-through` & `GET /api/drill-through`)
+  if (pathname === '/api/drill-through') {
+    if (req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const parsed = JSON.parse(body) as Record<string, unknown>;
+        const record = appendToDrillThroughBuffer(parsed);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            ok: true,
+            bufferedCount: drillThroughBuffer.length,
+            bufferSequenceNumber: record.bufferSequenceNumber,
+            serverReceivedIso: record.serverReceivedIso
+          })
+        );
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: String(err) }));
+      }
+      return;
+    }
+
+    if (req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify(
+          {
+            transponder: 'RT_TUTOR_DRILL_THROUGH_CHANNEL_BUFFER',
+            totalBufferedPackets: drillThroughBuffer.length,
+            latestRecord: drillThroughBuffer.length > 0 ? drillThroughBuffer[drillThroughBuffer.length - 1] : null,
+            buffer: drillThroughBuffer
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+  }
+
+  // 3c. External AI Real-Time Learning Augmentation Endpoint (`POST /api/augment`)
+  if (req.method === 'POST' && pathname === '/api/augment') {
+    try {
+      const body = await readBody(req);
+      const parsed = JSON.parse(body) as Record<string, unknown>;
+      const cmd: TransponderCommand = {
+        id: `cmd_${Date.now()}_aug`,
+        timestamp: new Date().toISOString(),
+        action: 'augment_learning_play',
+        payload: parsed
+      };
+      broadcastCommand(cmd);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, deliveredToClients: sseClients.size, command: cmd }));
+    } catch (err) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: String(err) }));
+    }
+    return;
+  }
+
   // 4. Inspect Live Transponder State (`GET /api/state`)
   if (req.method === 'GET' && pathname === '/api/state') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -617,6 +887,8 @@ const server = http.createServer(async (req, res) => {
           port: PORT,
           connectedBrowserSseClients: sseClients.size,
           telemetryPacketsReceived,
+          drillThroughPacketsBuffered: drillThroughBuffer.length,
+          latestDrillThrough: drillThroughBuffer.length > 0 ? drillThroughBuffer[drillThroughBuffer.length - 1] : null,
           commandHistoryCount: commandHistory.length,
           recentCommands: commandHistory.slice(-10),
           latestTelemetry
@@ -708,3 +980,4 @@ server.listen(PORT, () => {
   logFn(`   ├─ 🔬 Live Telemetry & 2D-FFT State     : http://localhost:${PORT}/api/state`);
   logFn(`   └─ 🎮 Remote Command Stream (SSE/POST)  : http://localhost:${PORT}/api/command`);
 });
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AAP_NOOT_MIES_FIGURES, AapNootMiesFigureAsset } from './src/aapNootMiesAssets';
+import { AAP_NOOT_MIES_FIGURES, AapNootMiesFigureAsset } from './aapNootMiesAssets';
 
 // ============================================================================
 // STRICT TYPESCRIPT INTERFACES & TYPES (Cognitive State, 2D-FFT & Telemetry)
@@ -150,6 +150,84 @@ export interface TelemetryDumpPayload {
   derivedHardData: DerivedHardData;
   telemetryPointCount: number;
   telemetry: TelemetryPoint[];
+}
+
+export interface DrillThroughEventEntry {
+  seq: number;
+  isoTime: string;
+  epochMs: number;
+  perfMs: number;
+  roundElapsedMs: number;
+  eventType: string;
+  detail: Record<string, unknown>;
+}
+
+export interface DomDrillThroughLayer {
+  depth: number;
+  tagName: string;
+  id: string | null;
+  className: string;
+  dataWord: string | null;
+  rect: { x: number; y: number; w: number; h: number };
+}
+
+export interface AiLearningAugmentationConfig {
+  hintThrottleMultiplier: number;
+  kineticSpeedMultiplier: number;
+  customEncouragementBanner: string | null;
+  focusPrefix: string | null;
+  lastUpdatedByAiAt: string | null;
+}
+
+export interface DrillThroughContextPacket {
+  packetId: string;
+  triggerSource: 'CTRL_SHIFT_ALT_G' | 'UI_BUTTON' | 'MCP_REMOTE_TRIGGER';
+  timestamps: {
+    isoTimestamp: string;
+    epochMs: number;
+    performanceNowMs: number;
+    timezoneOffsetMin: number;
+    sessionUptimeMs: number;
+    roundElapsedMs: number;
+    idleMs: number;
+    firstGoldenHoverMs: number | null;
+  };
+  pointerAndDomDrillThrough: {
+    pointerX: number;
+    pointerY: number;
+    normalizedX: number;
+    normalizedY: number;
+    hoveredWordCell: string | null;
+    isGoldenCellUnderPointer: boolean;
+    domStackUnderPointer: DomDrillThroughLayer[];
+  };
+  cognitiveAndPedagogicalState: {
+    curriculumMode: CurriculumMode;
+    anmFigureMode: AnmFigureMode;
+    level: number;
+    language: LanguageCode;
+    roundTarget: string;
+    roundOptions: string[];
+    streak: number;
+    tutorEmotion: TutorEmotion;
+    introspectionLevel: IntrospectionLevel;
+    lastIntrospectionLog: string;
+    aliveness: number;
+    hesitationIndex: number;
+    baseThresholdMs: number;
+    kineticMode: boolean;
+    pinholeEnabled: boolean;
+  };
+  aiAugmentationState: {
+    activeConfig: AiLearningAugmentationConfig;
+    learnerFlowDiagnosis: 'FLOW_MASTERY' | 'ACTIVE_DECODING' | 'HESITATION_SCAFFOLD_NEEDED' | 'IDLE_STANDBY';
+    recommendedHintThrottleMultiplier: number;
+    recommendedKineticSpeedMultiplier: number;
+    recommendedNextTargetWords: string[];
+  };
+  derivedHardData: DerivedHardData;
+  recentEventTimeline: DrillThroughEventEntry[];
+  recentTrajectorySample: TelemetryPoint[];
 }
 
 // ============================================================================
@@ -1972,7 +2050,35 @@ export default function RTTutor() {
   const [anmFigureMode, setAnmFigureMode] = useState<AnmFigureMode>('hybrid');
   const [showLeesplankModal, setShowLeesplankModal] = useState<boolean>(false);
   const [mcpConnected, setMcpConnected] = useState<boolean>(false);
+  const [drillThroughToast, setDrillThroughToast] = useState<string | null>(null);
+  const [aiAugmentation, setAiAugmentation] = useState<AiLearningAugmentationConfig>({
+    hintThrottleMultiplier: 1.0,
+    kineticSpeedMultiplier: 1.0,
+    customEncouragementBanner: null,
+    focusPrefix: null,
+    lastUpdatedByAiAt: null
+  });
   const lastMcpPushRef = useRef<number>(0);
+  const sessionStartTimeRef = useRef<number>(Date.now());
+  const eventSeqRef = useRef<number>(0);
+  const eventTimelineRef = useRef<DrillThroughEventEntry[]>([]);
+
+  const logTimelineEvent = useCallback((eventType: string, detail: Record<string, unknown> = {}) => {
+    const now = Date.now();
+    const entry: DrillThroughEventEntry = {
+      seq: ++eventSeqRef.current,
+      isoTime: new Date(now).toISOString(),
+      epochMs: now,
+      perfMs: typeof performance !== 'undefined' ? Number(performance.now().toFixed(2)) : 0,
+      roundElapsedMs: now - roundStartTime.current,
+      eventType,
+      detail
+    };
+    eventTimelineRef.current.push(entry);
+    if (eventTimelineRef.current.length > 120) {
+      eventTimelineRef.current.shift();
+    }
+  }, []);
 
   // Modal / Massive JSON Dump States
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
@@ -2353,10 +2459,11 @@ export default function RTTutor() {
       setAnimTick(elapsedSec * 1.4);
 
       if (kineticMode && kineticBodiesRef.current.length > 0) {
+        const kMult = aiAugmentation.kineticSpeedMultiplier;
         const nextOffsets = kineticBodiesRef.current.map((b, idx) => ({
-          dx: Math.sin(elapsedSec * b.freqX + b.phaseX) * b.ampX,
-          dy: Math.cos(elapsedSec * b.freqY + b.phaseY) * b.ampY,
-          rot: Math.sin(elapsedSec * 0.7 + idx) * (level === 0 ? 4.0 : 2.0)
+          dx: Math.sin(elapsedSec * b.freqX * kMult + b.phaseX) * b.ampX,
+          dy: Math.cos(elapsedSec * b.freqY * kMult + b.phaseY) * b.ampY,
+          rot: Math.sin(elapsedSec * 0.7 * kMult + idx) * (level === 0 ? 4.0 : 2.0)
         }));
         setKineticOffsets(nextOffsets);
       }
@@ -2365,13 +2472,16 @@ export default function RTTutor() {
 
     rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
-  }, [started, currentRound, showJsonModal, kineticMode, level]);
+  }, [started, currentRound, showJsonModal, kineticMode, level, aiAugmentation.kineticSpeedMultiplier]);
 
   // ==========================================================================
   // COMPUTED COGNITIVE & ORTHOGRAPHIC VARIABLES
   // ==========================================================================
 
-  const baseThreshold = useMemo(() => 4000 + Math.max(0, streak) * 2000, [streak]);
+  const baseThreshold = useMemo(
+    () => Math.round((4000 + Math.max(0, streak) * 2000) * aiAugmentation.hintThrottleMultiplier),
+    [streak, aiAugmentation.hintThrottleMultiplier]
+  );
 
   const aliveness = useMemo(() => {
     const startMs = Math.max(1500, baseThreshold - 1500);
@@ -2719,8 +2829,215 @@ export default function RTTutor() {
     setCopySuccess(false);
   }, [getTelemetryPayload]);
 
+  // ==========================================================================
+  // CTRL+SHIFT+ALT+G DRILL-THROUGH CONTEXT & AI CO-PILOT BUFFER ENGINE
+  // ==========================================================================
+
+  const buildDrillThroughPacket = useCallback(
+    (triggerSource: DrillThroughContextPacket['triggerSource'] = 'CTRL_SHIFT_ALT_G'): DrillThroughContextPacket => {
+      const now = Date.now();
+      const vw = typeof window !== 'undefined' ? Math.max(1, window.innerWidth) : 1280;
+      const vh = typeof window !== 'undefined' ? Math.max(1, window.innerHeight) : 800;
+
+      const domStack: DomDrillThroughLayer[] = [];
+      if (typeof document !== 'undefined' && document.elementsFromPoint) {
+        const els = document.elementsFromPoint(pointerPos.x, pointerPos.y).slice(0, 8);
+        els.forEach((el, idx) => {
+          const r = el.getBoundingClientRect();
+          domStack.push({
+            depth: idx,
+            tagName: el.tagName.toLowerCase(),
+            id: el.id || null,
+            className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
+            dataWord: el.getAttribute('data-word'),
+            rect: {
+              x: Math.round(r.left),
+              y: Math.round(r.top),
+              w: Math.round(r.width),
+              h: Math.round(r.height)
+            }
+          });
+        });
+      }
+
+      const derived = computeDerivedHardData(
+        telemetryData.current,
+        currentRound?.target || '',
+        currentRound?.options || [],
+        cellDwellRef.current,
+        cellVisitsRef.current,
+        hoveredWordRef.current,
+        firstGoldenHoverMsRef.current
+      );
+
+      let flowDiagnosis: DrillThroughContextPacket['aiAugmentationState']['learnerFlowDiagnosis'] = 'ACTIVE_DECODING';
+      if (idleMs > 15000) {
+        flowDiagnosis = 'IDLE_STANDBY';
+      } else if (
+        derived.fft2D.cognitiveLoadSignature === 'HIGH_HESITATION' ||
+        hesitationIndex > 0.65 ||
+        streak < 0
+      ) {
+        flowDiagnosis = 'HESITATION_SCAFFOLD_NEEDED';
+      } else if (streak >= 2 && derived.hoverAnalytics.goldenToDistractorRatio >= 0.6) {
+        flowDiagnosis = 'FLOW_MASTERY';
+      }
+
+      const recHintMult =
+        flowDiagnosis === 'HESITATION_SCAFFOLD_NEEDED'
+          ? 0.70
+          : flowDiagnosis === 'FLOW_MASTERY'
+            ? 1.25
+            : 1.0;
+      const recKineticMult =
+        flowDiagnosis === 'HESITATION_SCAFFOLD_NEEDED'
+          ? 0.75
+          : flowDiagnosis === 'FLOW_MASTERY'
+            ? 1.20
+            : 1.0;
+
+      const targetPrefix = (currentRound?.target || 'a').slice(0, 1);
+      const pool = curriculumMode === 'aapnootmies'
+        ? AAP_NOOT_MIES_WORDS
+        : (DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS);
+      const recNextWords = pool
+        .filter(w => w !== currentRound?.target && w.startsWith(targetPrefix))
+        .slice(0, 4);
+
+      return {
+        packetId: `dt_${now}_${Math.random().toString(36).slice(2, 7)}`,
+        triggerSource,
+        timestamps: {
+          isoTimestamp: new Date(now).toISOString(),
+          epochMs: now,
+          performanceNowMs: typeof performance !== 'undefined' ? Number(performance.now().toFixed(2)) : 0,
+          timezoneOffsetMin: new Date().getTimezoneOffset(),
+          sessionUptimeMs: now - sessionStartTimeRef.current,
+          roundElapsedMs: elapsedTime,
+          idleMs,
+          firstGoldenHoverMs: firstGoldenHoverMsRef.current
+        },
+        pointerAndDomDrillThrough: {
+          pointerX: pointerPos.x,
+          pointerY: pointerPos.y,
+          normalizedX: Number((pointerPos.x / vw).toFixed(3)),
+          normalizedY: Number((pointerPos.y / vh).toFixed(3)),
+          hoveredWordCell: hoveredWordRef.current,
+          isGoldenCellUnderPointer: Boolean(currentRound && hoveredWordRef.current === currentRound.target),
+          domStackUnderPointer: domStack
+        },
+        cognitiveAndPedagogicalState: {
+          curriculumMode,
+          anmFigureMode,
+          level,
+          language,
+          roundTarget: currentRound?.target || '',
+          roundOptions: currentRound?.options || [],
+          streak,
+          tutorEmotion,
+          introspectionLevel,
+          lastIntrospectionLog: introspectionLog,
+          aliveness: Number(aliveness.toFixed(3)),
+          hesitationIndex: Number(hesitationIndex.toFixed(3)),
+          baseThresholdMs: baseThreshold,
+          kineticMode,
+          pinholeEnabled
+        },
+        aiAugmentationState: {
+          activeConfig: aiAugmentation,
+          learnerFlowDiagnosis: flowDiagnosis,
+          recommendedHintThrottleMultiplier: recHintMult,
+          recommendedKineticSpeedMultiplier: recKineticMult,
+          recommendedNextTargetWords: recNextWords.length > 0 ? recNextWords : ['aap', 'noot', 'mies']
+        },
+        derivedHardData: derived,
+        recentEventTimeline: [...eventTimelineRef.current.slice(-40)],
+        recentTrajectorySample: [...telemetryData.current.slice(-32)]
+      };
+    },
+    [
+      pointerPos,
+      currentRound,
+      idleMs,
+      hesitationIndex,
+      streak,
+      curriculumMode,
+      anmFigureMode,
+      language,
+      level,
+      elapsedTime,
+      tutorEmotion,
+      introspectionLevel,
+      introspectionLog,
+      aliveness,
+      baseThreshold,
+      kineticMode,
+      pinholeEnabled,
+      aiAugmentation
+    ]
+  );
+
+  const triggerDrillThroughCapture = useCallback(
+    (source: DrillThroughContextPacket['triggerSource'] = 'CTRL_SHIFT_ALT_G', openModal: boolean = false) => {
+      logTimelineEvent('drill_through_capture', { source, pointer: pointerPos, hoveredWord: hoveredWordRef.current });
+      const packet = buildDrillThroughPacket(source);
+      const formatted = JSON.stringify(packet, null, 2);
+
+      setJsonText(formatted);
+      if (openModal) {
+        setShowJsonModal(true);
+      }
+
+      // 1. Auto-Copy to System Clipboard
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(formatted).then(() => {
+          setCopySuccess(true);
+          setTimeout(() => setCopySuccess(false), 2500);
+        }).catch(() => {
+          // ignore clipboard permission blocks in headless environments
+        });
+      }
+
+      // 2. Push to TypeScript MCP Server Channel Buffer (:3001/api/drill-through)
+      fetch('http://localhost:3001/api/drill-through', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: formatted
+      })
+        .then(r => {
+          if (r.ok) setMcpConnected(true);
+        })
+        .catch(() => {
+          // Offline mode fallback: store in localStorage
+        });
+
+      try {
+        localStorage.setItem('tutor_last_drill_through', formatted);
+      } catch {
+        // ignore storage quota
+      }
+
+      playSynth('golden');
+      setDrillThroughToast(
+        `🎯 Drill-Through Context (${packet.packetId}) Auto-Copied & Buffered to MCP :3001! [Flow: ${packet.aiAugmentationState.learnerFlowDiagnosis}]`
+      );
+      setTimeout(() => {
+        setDrillThroughToast(prev => (prev && prev.includes(packet.packetId) ? null : prev));
+      }, 4500);
+
+      return packet;
+    },
+    [buildDrillThroughPacket, logTimelineEvent, pointerPos, playSynth]
+  );
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+Alt+G -> Instant Drill-Through Context Auto-Copy & MCP Channel Buffer Push!
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.altKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        triggerDrillThroughCapture('CTRL_SHIFT_ALT_G', false);
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === '/' || e.key === '?')) {
         e.preventDefault();
         generateJsonDump();
@@ -2728,7 +3045,7 @@ export default function RTTutor() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [generateJsonDump]);
+  }, [generateJsonDump, triggerDrillThroughCapture]);
 
   // ==========================================================================
   // 3-CHANNEL BRIDGE: MCP TRANSPONDER (SSE :3001), PLAYWRIGHT & EDGE DEVTOOLS
@@ -2809,19 +3126,72 @@ export default function RTTutor() {
         case 'trigger_introspection':
           triggerManualIntrospection();
           break;
+        case 'trigger_drill_through':
+          triggerDrillThroughCapture('MCP_REMOTE_TRIGGER', Boolean(p.openModal));
+          break;
+        case 'augment_learning_play': {
+          const nextHintMult = typeof p.hintThrottleMultiplier === 'number'
+            ? Math.max(0.3, Math.min(2.5, p.hintThrottleMultiplier))
+            : aiAugmentation.hintThrottleMultiplier;
+          const nextKineticMult = typeof p.kineticSpeedMultiplier === 'number'
+            ? Math.max(0.2, Math.min(2.5, p.kineticSpeedMultiplier))
+            : aiAugmentation.kineticSpeedMultiplier;
+          const banner = typeof p.customEncouragementBanner === 'string'
+            ? p.customEncouragementBanner
+            : aiAugmentation.customEncouragementBanner;
+          const focusPref = typeof p.focusPrefix === 'string'
+            ? p.focusPrefix
+            : aiAugmentation.focusPrefix;
+
+          setAiAugmentation({
+            hintThrottleMultiplier: nextHintMult,
+            kineticSpeedMultiplier: nextKineticMult,
+            customEncouragementBanner: banner,
+            focusPrefix: focusPref,
+            lastUpdatedByAiAt: new Date().toISOString()
+          });
+
+          if (typeof p.emotion === 'string' && EMOTION_LIST.includes(p.emotion as TutorEmotion)) {
+            setTutorEmotion(p.emotion as TutorEmotion);
+          }
+          if (typeof p.spokenEncouragement === 'string' && p.spokenEncouragement.trim()) {
+            speakText(p.spokenEncouragement, { emotionOverride: 'ENCOURAGING', cancelFirst: true });
+          }
+          logTimelineEvent('ai_augmentation_applied', {
+            hintThrottleMultiplier: nextHintMult,
+            kineticSpeedMultiplier: nextKineticMult,
+            customEncouragementBanner: banner,
+            focusPrefix: focusPref
+          });
+          break;
+        }
       }
     },
-    [initAudio, generateRound, level, streak, curriculumMode, language, currentRound, speakWord]
+    [
+      initAudio,
+      generateRound,
+      level,
+      streak,
+      curriculumMode,
+      language,
+      currentRound,
+      speakWord,
+      speakText,
+      triggerDrillThroughCapture,
+      aiAugmentation,
+      logTimelineEvent
+    ]
   );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     (window as unknown as Record<string, unknown>).__RT_TUTOR_BRIDGE__ = {
       getTelemetry: getTelemetryPayload,
+      triggerDrillThrough: () => triggerDrillThroughCapture('MCP_REMOTE_TRIGGER', false),
       executeCommand: executeTransponderCommand,
       figures: AAP_NOOT_MIES_FIGURES
     };
-  }, [getTelemetryPayload, executeTransponderCommand]);
+  }, [getTelemetryPayload, triggerDrillThroughCapture, executeTransponderCommand]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
@@ -3006,12 +3376,17 @@ export default function RTTutor() {
 
       if (word) {
         cellVisitsRef.current[word] = (cellVisitsRef.current[word] || 0) + 1;
-        if (currentRound && word === currentRound.target && firstGoldenHoverMsRef.current === null) {
+        const isGold = Boolean(currentRound && word === currentRound.target);
+        if (isGold && firstGoldenHoverMsRef.current === null) {
           firstGoldenHoverMsRef.current = Date.now() - roundStartTime.current;
         }
+        logTimelineEvent(isGold ? 'golden_hover_enter' : 'distractor_hover_enter', {
+          word,
+          visitCount: cellVisitsRef.current[word]
+        });
       }
     }
-  }, [currentRound]);
+  }, [currentRound, logTimelineEvent]);
 
   const handleInteractionEvent = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const now = Date.now();
@@ -3089,6 +3464,11 @@ export default function RTTutor() {
 
     if (!currentRound) return;
     const isHit = word === currentRound.target;
+    logTimelineEvent(isHit ? 'word_click_hit' : 'word_click_explore', {
+      clickedWord: word,
+      targetWord: currentRound.target,
+      streakBefore: streak
+    });
 
     const rect = e.currentTarget.getBoundingClientRect();
     const shotX = e.clientX || rect.left + rect.width / 2;
@@ -3635,6 +4015,13 @@ export default function RTTutor() {
             💾 Download .JSON
           </button>
           <button
+            onClick={() => triggerDrillThroughCapture('UI_BUTTON', true)}
+            title="Ctrl+Shift+Alt+G: Drill-Through Context Auto-Copy & Push naar MCP Channel Buffer (:3001)"
+            className="px-2.5 sm:px-3 py-2 bg-purple-700 hover:bg-purple-600 border border-purple-400/60 rounded-xl text-xs font-bold font-mono text-white shadow-lg transition-colors flex items-center gap-1"
+          >
+            🎯 Ctrl+Shift+Alt+G
+          </button>
+          <button
             onClick={generateJsonDump}
             className="px-2.5 sm:px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold font-mono text-white shadow-lg transition-colors flex items-center gap-1"
           >
@@ -3755,6 +4142,30 @@ export default function RTTutor() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* CTRL+SHIFT+ALT+G DRILL-THROUGH TOAST & EXTERNAL AI CO-PILOT BANNER   */}
+      {/* ==================================================================== */}
+      {drillThroughToast && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 font-mono text-xs shadow-2xl flex items-center gap-3">
+          <span>{drillThroughToast}</span>
+          <button
+            onClick={() => setShowJsonModal(true)}
+            className="px-2.5 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-bold text-white"
+          >
+            Open Buffer
+          </button>
+        </div>
+      )}
+
+      {aiAugmentation.customEncouragementBanner && (
+        <div className="relative z-30 mx-auto mt-1 px-4 py-1.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-200 text-xs font-mono flex items-center gap-2 shadow-lg">
+          <span>🤖 AI Co-Pilot: {aiAugmentation.customEncouragementBanner}</span>
+          <span className="text-amber-400/80">
+            (Hint×{aiAugmentation.hintThrottleMultiplier.toFixed(2)} | Kinetic×{aiAugmentation.kineticSpeedMultiplier.toFixed(2)})
+          </span>
         </div>
       )}
 

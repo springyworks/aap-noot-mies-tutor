@@ -85,14 +85,30 @@ The workspace includes a zero-dependency TypeScript MCP Transponder (`server/mcp
      # or with tsx:
      npm run transponder
      ```
-   - Serves the live app at `http://localhost:3001/`, streams real-time SSE commands (`GET /api/events`, `POST /api/command`), receives 2D-FFT & Golden Cell telemetry (`POST /api/telemetry`, `GET /api/state`), and exposes a full **Model Context Protocol (MCP) JSON-RPC 2.0** server over `POST /mcp` and `--stdio` (configured in `.vscode/mcp.json`).
+   - Serves the live app at `http://localhost:3001/`, streams real-time SSE commands (`GET /api/events`, `POST /api/command`), receives 2D-FFT & Golden Cell telemetry (`POST /api/telemetry`, `GET /api/state`), buffers `Ctrl+Shift+Alt+G` Drill-Through Context packets (`POST /api/drill-through`, `GET /api/drill-through`), dispatches real-time External AI Learning Augmentation (`POST /api/augment`), and exposes a full **Model Context Protocol (MCP) JSON-RPC 2.0** server over `POST /mcp` and `--stdio` (configured in `.vscode/mcp.json`) with 7 tools:
+     - `get_tutor_telemetry`
+     - `send_tutor_command`
+     - `inspect_aapnootmies_figures`
+     - `save_telemetry_snapshot`
+     - `get_drill_through_buffer`
+     - `trigger_drill_through`
+     - `augment_learning_play`
 2. **Channel 2 — Playwright & MCP Automated Exerciser (`scripts/playwright_exerciser.ts`):**
-   - Exercises all MCP tools (`get_tutor_telemetry`, `send_tutor_command`, `inspect_aapnootmies_figures`, `save_telemetry_snapshot`), verifies the 17 cut-out Aap-Noot-Mies figures, tests the Zero-Frustration guardrail, and verifies synthetic 64-point 2D-FFT telemetry:
+   - Exercises all 7 MCP tools, verifies the 17 cut-out Aap-Noot-Mies figures, tests the Zero-Frustration guardrail, verifies synthetic 64-point 2D-FFT telemetry, tests the `Ctrl+Shift+Alt+G` Drill-Through ring buffer, and dispatches External AI Dynamic Learning Augmentation:
      ```bash
      node dist/playwright_exerciser.mjs
      ```
 3. **Channel 3 — VS Code Microsoft Edge DevTools (`.vscode/launch.json`):**
    - Press `F5` in VS Code and choose **`🚀 All Channels: MCP Transponder + Microsoft Edge DevTools`** (or **`Channel 3: Open Embedded Edge DevTools Panel (:3001)`**) to inspect DOM/SVG animations, network telemetry, and `window.__RT_TUTOR_BRIDGE__` directly inside VS Code.
+
+### 🎯 `Ctrl+Shift+Alt+G` Drill-Through Context & External AI Dynamic Learning Augmentation
+- **Instant Hotkey & Top-Bar Button (`🎯 Ctrl+Shift+Alt+G`):** Pressing `Ctrl+Shift+Alt+G` (or clicking the top-bar `🎯 Ctrl+Shift+Alt+G` button) captures a complete `DrillThroughContextPacket` containing:
+  - **Multi-precision timestamps:** `isoTimestamp`, `epochMs`, `performanceNowMs`, `timezoneOffsetMin`, `sessionUptimeMs`, `roundElapsedMs`, `idleMs`, and `firstGoldenHoverMs`.
+  - **Pointer & DOM Drill-Through Stack:** Exact pointer coordinates and `document.elementsFromPoint(x, y)` layer hierarchy (`tag`, `id`, `className`, `dataWord`, `svgTag`, `boundingBox`).
+  - **Pedagogical & 2D-FFT Snapshot:** Active `roundTarget`, `goldenHoverStage` (1–4), `DerivedHardData` kinematics + 64-point 2D-FFT spectrum, and the last 30 timestamped user/tutor timeline events (`recentEventTimeline`).
+  - **AI Flow Diagnosis (`aiAugmentationState`):** Automatic classification into `'FLOW_MASTERY' | 'ACTIVE_DECODING' | 'HESITATION_SCAFFOLD_NEEDED' | 'IDLE_STANDBY'` with recommended hint-throttle, kinetic speed, and next target words.
+  - **Auto-Copy & MCP Channel Buffer:** Automatically copies the JSON packet to the system clipboard (`navigator.clipboard.writeText`) and pushes it into the MCP server's 50-packet ring buffer (`POST /api/drill-through`, persisted to `telemetry_logs/latest_drill_through.json`).
+- **Real-Time External AI Co-Pilot (`augment_learning_play` / `POST /api/augment`):** External AI agents can dynamically adjust `hintThrottleMultiplier` (0.3–2.5x), `kineticSpeedMultiplier` (0.4–2.0x), `focusPrefix`, `emotion` (18 positive emotions), `targetWord`, and `customEncouragementBanner` in real time.
 
 ---
 

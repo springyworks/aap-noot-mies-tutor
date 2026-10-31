@@ -146,3 +146,4 @@ ${jsCode}
 }
 
 buildStandaloneApp(findEsbuildBinary());
+
