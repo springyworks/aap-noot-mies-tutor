@@ -4,9 +4,9 @@ set -e
 export PATH="/snap/bin:/snap/gh/751:/snap/gh/751/usr/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 echo "🔄 1. Triggering remote reload on connected browser via MCP :3001..."
-curl -s -X POST http://localhost:3001/mcp \
+curl -s -X POST http://localhost:3001/api/command \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"dispatch_tutor_command","arguments":{"action":"reload_page"}}}' || true
+  -d '{"action":"reload_page"}' || true
 
 echo "🚀 2. Creating/Pushing GitHub repository via gh CLI..."
 REPO_NAME="aap-noot-mies-tutor"
