@@ -49,26 +49,26 @@ export interface AapNootMiesFigureAsset {
 }
 
 const FIGURE_SPECS: readonly FigureCropSpec[] = [
-  // Row 1 (6 figures) — Trim 4px inner wooden frame so no straight borders remain
-  { word: 'aap',     left: 8,    top: 67,  right: 161,  bottom: 213, labelNL: 'Aap op het dak',             labelEN: 'Monkey on perch',           lampPrimaryHex: '#d97706', lampSecondaryHex: '#7eaba0', lampWarmthHex: '#f59e0b' },
-  { word: 'noot',    left: 204,  top: 67,  right: 367,  bottom: 213, labelNL: 'Walnoot op tafel',           labelEN: 'Walnut on table',           lampPrimaryHex: '#b45309', lampSecondaryHex: '#689d99', lampWarmthHex: '#f3c663' },
-  { word: 'mies',    left: 410,  top: 67,  right: 573,  bottom: 213, labelNL: 'Poes Mies bij de schutting', labelEN: 'Cat Mies by fence',         lampPrimaryHex: '#e07a5f', lampSecondaryHex: '#81b29a', lampWarmthHex: '#f2cc8f' },
-  { word: 'wim',     left: 616,  top: 67,  right: 779,  bottom: 213, labelNL: 'Wim speelt met blokken',     labelEN: 'Wim playing with blocks',   lampPrimaryHex: '#6d9dc5', lampSecondaryHex: '#e07a5f', lampWarmthHex: '#f4a261' },
-  { word: 'zus',     left: 822,  top: 67,  right: 985,  bottom: 213, labelNL: 'Zus in de kinderstoel',      labelEN: 'Sister Zus in highchair',   lampPrimaryHex: '#c48d84', lampSecondaryHex: '#d4b483', lampWarmthHex: '#f59e0b' },
-  { word: 'jet',     left: 1030, top: 67,  right: 1190, bottom: 213, labelNL: 'Jet kleedt haar pop aan',    labelEN: 'Jet dressing her doll',     lampPrimaryHex: '#d97706', lampSecondaryHex: '#c48d84', lampWarmthHex: '#fde68a' },
+  // Row 1 (6 figures) — Distinct, saturated 1960s kitsch motion-lamp palettes per character
+  { word: 'aap',     left: 8,    top: 67,  right: 161,  bottom: 213, labelNL: 'Aap op het dak',             labelEN: 'Monkey on perch',           lampPrimaryHex: '#ff5e1a', lampSecondaryHex: '#00d2aa', lampWarmthHex: '#ffe600' },
+  { word: 'noot',    left: 204,  top: 67,  right: 367,  bottom: 213, labelNL: 'Walnoot op tafel',           labelEN: 'Walnut on table',           lampPrimaryHex: '#10b981', lampSecondaryHex: '#f59e0b', lampWarmthHex: '#fde047' },
+  { word: 'mies',    left: 410,  top: 67,  right: 573,  bottom: 213, labelNL: 'Poes Mies bij de schutting', labelEN: 'Cat Mies by fence',         lampPrimaryHex: '#ec4899', lampSecondaryHex: '#8b5cf6', lampWarmthHex: '#fbcfe8' },
+  { word: 'wim',     left: 616,  top: 67,  right: 779,  bottom: 213, labelNL: 'Wim speelt met blokken',     labelEN: 'Wim playing with blocks',   lampPrimaryHex: '#06b6d4', lampSecondaryHex: '#f97316', lampWarmthHex: '#fde047' },
+  { word: 'zus',     left: 822,  top: 67,  right: 985,  bottom: 213, labelNL: 'Zus in de kinderstoel',      labelEN: 'Sister Zus in highchair',   lampPrimaryHex: '#f43f5e', lampSecondaryHex: '#eab308', lampWarmthHex: '#fef08a' },
+  { word: 'jet',     left: 1030, top: 67,  right: 1190, bottom: 213, labelNL: 'Jet kleedt haar pop aan',    labelEN: 'Jet dressing her doll',     lampPrimaryHex: '#a855f7', lampSecondaryHex: '#ec4899', lampWarmthHex: '#fde68a' },
   // Row 2 (6 figures)
-  { word: 'teun',    left: 8,    top: 335, right: 161,  bottom: 484, labelNL: 'Oude Teun met hoed en stok', labelEN: 'Old Teun with hat and cane',lampPrimaryHex: '#7eaba0', lampSecondaryHex: '#d4b483', lampWarmthHex: '#f3c663' },
-  { word: 'vuur',    left: 204,  top: 335, right: 367,  bottom: 484, labelNL: 'Brandende vuurkorf',         labelEN: 'Burning fire brazier',      lampPrimaryHex: '#ea580c', lampSecondaryHex: '#f59e0b', lampWarmthHex: '#fef08a' },
-  { word: 'gijs',    left: 410,  top: 335, right: 573,  bottom: 484, labelNL: 'Gijs met de schop',          labelEN: 'Gijs with shovel',          lampPrimaryHex: '#5b8ea3', lampSecondaryHex: '#d4b483', lampWarmthHex: '#f59e0b' },
-  { word: 'lam',     left: 616,  top: 335, right: 779,  bottom: 484, labelNL: 'Wit lammetje in de wei',     labelEN: 'White lamb in meadow',      lampPrimaryHex: '#84a98c', lampSecondaryHex: '#f2cc8f', lampWarmthHex: '#fef3c7' },
-  { word: 'kees',    left: 822,  top: 335, right: 985,  bottom: 484, labelNL: 'Witte keeshond Kees',        labelEN: 'White spitz dog Kees',      lampPrimaryHex: '#d4a373', lampSecondaryHex: '#7eaba0', lampWarmthHex: '#fde68a' },
-  { word: 'bok',     left: 1030, top: 335, right: 1190, bottom: 484, labelNL: 'Bok voor de bokkenwagen',    labelEN: 'Billy goat pulling cart',   lampPrimaryHex: '#81b29a', lampSecondaryHex: '#e07a5f', lampWarmthHex: '#f2cc8f' },
+  { word: 'teun',    left: 8,    top: 335, right: 161,  bottom: 484, labelNL: 'Oude Teun met hoed en stok', labelEN: 'Old Teun with hat and cane',lampPrimaryHex: '#14b8a6', lampSecondaryHex: '#f59e0b', lampWarmthHex: '#fef08a' },
+  { word: 'vuur',    left: 204,  top: 335, right: 367,  bottom: 484, labelNL: 'Brandende vuurkorf',         labelEN: 'Burning fire brazier',      lampPrimaryHex: '#ef4444', lampSecondaryHex: '#f97316', lampWarmthHex: '#fef08a' },
+  { word: 'gijs',    left: 410,  top: 335, right: 573,  bottom: 484, labelNL: 'Gijs met de schop',          labelEN: 'Gijs with shovel',          lampPrimaryHex: '#3b82f6', lampSecondaryHex: '#10b981', lampWarmthHex: '#fde047' },
+  { word: 'lam',     left: 616,  top: 335, right: 779,  bottom: 484, labelNL: 'Wit lammetje in de wei',     labelEN: 'White lamb in meadow',      lampPrimaryHex: '#22c55e', lampSecondaryHex: '#eab308', lampWarmthHex: '#fef9c3' },
+  { word: 'kees',    left: 822,  top: 335, right: 985,  bottom: 484, labelNL: 'Witte keeshond Kees',        labelEN: 'White spitz dog Kees',      lampPrimaryHex: '#f59e0b', lampSecondaryHex: '#06b6d4', lampWarmthHex: '#fef08a' },
+  { word: 'bok',     left: 1030, top: 335, right: 1190, bottom: 484, labelNL: 'Bok voor de bokkenwagen',    labelEN: 'Billy goat pulling cart',   lampPrimaryHex: '#84cc16', lampSecondaryHex: '#f97316', lampWarmthHex: '#fef08a' },
   // Row 3 (5 figures; weide & schapen are wide landscape panels)
-  { word: 'weide',   left: 8,    top: 602, right: 262,  bottom: 748, labelNL: 'Hollandse weide met koe',    labelEN: 'Dutch meadow with cow',     lampPrimaryHex: '#74a892', lampSecondaryHex: '#e5c185', lampWarmthHex: '#fbf2c4' },
-  { word: 'does',    left: 309,  top: 602, right: 471,  bottom: 748, labelNL: 'Zwarte poedel Does',         labelEN: 'Black poodle Does',         lampPrimaryHex: '#c98a5b', lampSecondaryHex: '#7eaba0', lampWarmthHex: '#f3c663' },
-  { word: 'hok',     left: 514,  top: 602, right: 676,  bottom: 748, labelNL: 'Groen dierenhok',            labelEN: 'Green animal house',        lampPrimaryHex: '#6b9080', lampSecondaryHex: '#d4a373', lampWarmthHex: '#f59e0b' },
-  { word: 'duif',    left: 720,  top: 602, right: 884,  bottom: 748, labelNL: 'Duif op de dakpannen',       labelEN: 'Pigeon on roof tiles',      lampPrimaryHex: '#6d9dc5', lampSecondaryHex: '#e07a5f', lampWarmthHex: '#fde68a' },
-  { word: 'schapen', left: 930,  top: 602, right: 1190, bottom: 748, labelNL: 'Kudde schapen onder boom',   labelEN: 'Flock of sheep under tree', lampPrimaryHex: '#81b29a', lampSecondaryHex: '#d4b483', lampWarmthHex: '#f2cc8f' }
+  { word: 'weide',   left: 8,    top: 602, right: 262,  bottom: 748, labelNL: 'Hollandse weide met koe',    labelEN: 'Dutch meadow with cow',     lampPrimaryHex: '#10b981', lampSecondaryHex: '#0ea5e9', lampWarmthHex: '#fef08a' },
+  { word: 'does',    left: 309,  top: 602, right: 471,  bottom: 748, labelNL: 'Zwarte poedel Does',         labelEN: 'Black poodle Does',         lampPrimaryHex: '#f97316', lampSecondaryHex: '#ec4899', lampWarmthHex: '#fde047' },
+  { word: 'hok',     left: 514,  top: 602, right: 676,  bottom: 748, labelNL: 'Groen dierenhok',            labelEN: 'Green animal house',        lampPrimaryHex: '#059669', lampSecondaryHex: '#eab308', lampWarmthHex: '#fde68a' },
+  { word: 'duif',    left: 720,  top: 602, right: 884,  bottom: 748, labelNL: 'Duif op de dakpannen',       labelEN: 'Pigeon on roof tiles',      lampPrimaryHex: '#0ea5e9', lampSecondaryHex: '#f43f5e', lampWarmthHex: '#fef08a' },
+  { word: 'schapen', left: 930,  top: 602, right: 1190, bottom: 748, labelNL: 'Kudde schapen onder boom',   labelEN: 'Flock of sheep under tree', lampPrimaryHex: '#22c55e', lampSecondaryHex: '#a855f7', lampWarmthHex: '#fef08a' }
 ];
 
 const WORKSPACE_ROOT: string = process.cwd();
@@ -158,17 +158,39 @@ function buildAlphaWebpFromPng(pngPath: string, webpPath: string): { width: numb
       const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
 
       // Center subject protection (center of illustration stays solid & vibrant)
-      const centerProtect = 1.0 - smoothstep(0.18, 0.78, ellDist);
+      const centerProtect = 1.0 - smoothstep(0.14, 0.72, ellDist);
 
-      // Background similarity factor (high when pixel matches perimeter sky/wall and is light/low-sat)
-      const bgMatch = (1.0 - smoothstep(14, 58, minBgDist)) * smoothstep(0.42, 0.82, lum) * (1.0 - sat * 0.55);
+      // High-contrast background similarity factor:
+      // Pale / low-saturation sky & parchment wall pixels become strongly translucent (alpha 0.08..0.30)
+      // so the 1960s kitsch motion-lamp backdrop colors glow vibrantly through them,
+      // while character ink lines and saturated colors stay crisp & opaque (alpha 0.95..1.0)!
+      const bgColorSimilarity = 1.0 - smoothstep(10, 68, minBgDist);
+      const isPaleBackdrop = smoothstep(0.46, 0.80, lum) * (1.0 - smoothstep(0.12, 0.48, sat));
+      const bgMatch = Math.max(bgColorSimilarity * smoothstep(0.38, 0.78, lum) * (1.0 - sat * 0.65), isPaleBackdrop * 0.85);
 
-      // Allow 1960s motion-lamp glow to shine through background sky/wall (alpha ~0.28..0.55)
-      // while keeping character foreground lines and colors at 0.92..1.0!
-      const backdropTranslucency = 1.0 - bgMatch * (0.72 - centerProtect * 0.42);
+      const rawBackdropAlpha = 1.0 - bgMatch * (0.90 - centerProtect * 0.36);
+      // Apply steep S-curve alpha contrast so foreground pops and backdrop lets the kitsch lamp shine through
+      const highContrastAlpha = smoothstep(0.12, 0.84, rawBackdropAlpha);
 
-      // Slight warm vintage color grading lift on midtones
-      const finalAlpha = Math.round(Math.max(0, Math.min(1, edgeAlpha * backdropTranslucency)) * 255);
+      // Boost color saturation (+42%) and warm midtone contrast on foreground character pixels
+      const fgStrength = smoothstep(0.25, 0.85, highContrastAlpha);
+      const satBoost = 1.0 + 0.44 * fgStrength;
+      const gray = r * 0.299 + g * 0.587 + b * 0.114;
+      let nr = gray + (r - gray) * satBoost;
+      let ng = gray + (g - gray) * satBoost;
+      let nb = gray + (b - gray) * satBoost;
+
+      // Subtle S-curve contrast around mid-luminance (128) for richer pigment depth
+      const contrast = 1.0 + 0.16 * fgStrength;
+      nr = (nr - 128) * contrast + 128;
+      ng = (ng - 128) * contrast + 128;
+      nb = (nb - 128) * contrast + 128;
+
+      rgbaBuf[idx] = Math.max(0, Math.min(255, Math.round(nr)));
+      rgbaBuf[idx + 1] = Math.max(0, Math.min(255, Math.round(ng)));
+      rgbaBuf[idx + 2] = Math.max(0, Math.min(255, Math.round(nb)));
+
+      const finalAlpha = Math.round(Math.max(0, Math.min(1, edgeAlpha * highContrastAlpha)) * 255);
       rgbaBuf[idx + 3] = finalAlpha;
     }
   }

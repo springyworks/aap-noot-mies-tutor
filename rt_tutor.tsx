@@ -754,66 +754,81 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
 
   // ALWAYS render the transparent Alpha-Channel WebP Leesplankje figure + 1960s Motion-Lamp when anmFigure exists!
   const showCutoutImage = Boolean(anmFigure);
-  const showVectorArt = !anmFigure || anmFigureMode !== 'photo';
+  const showVectorArt = !anmFigure || anmFigureMode === 'vector';
   const imgW = anmFigure?.isLandscape ? 166 : 128;
   const imgH = anmFigure?.isLandscape ? 104 : 112;
   const imgX = -imgW / 2;
   const imgY = -imgH / 2;
   const frameDashOffset = Math.round(440 * (1 - drawProgress));
 
-  // 1960s Motion-Lamp (Mathmos / Liquid Oil-Lamp) organic thermal convection phase
+  // Unique deterministic per-word seed so each cell has its own distinct 1960s kitsch lamp layout & rhythm ("not all the same")
+  let wordHash = (anmFigure?.index || 1) * 97;
+  for (let c = 0; c < w.length; c++) {
+    wordHash = (wordHash * 31 + w.charCodeAt(c)) % 997;
+  }
+  const seedA = (wordHash % 100) / 100;
+  const seedB = ((wordHash * 7) % 100) / 100;
+  const seedC = ((wordHash * 13) % 100) / 100;
+
+  // Calm, non-circular 1960s Kitsch Lamp: fixed horizontal anchor per figure + slow vertical thermal rise & color breathing (NO circular rotation!)
   const lampPrimary = anmFigure?.lampPrimaryHex || primaryStroke;
   const lampSecondary = anmFigure?.lampSecondaryHex || secondaryStroke;
   const lampWarmth = anmFigure?.lampWarmthHex || accentColor;
-  const lampSpeed = 0.65 + effectiveAliveness * 0.45 + goldenEvolution * 0.35;
-  const lampPhase = animTick * lampSpeed;
-  const blob1X = Math.sin(lampPhase * 1.1) * (imgW * 0.22);
-  const blob1Y = Math.cos(lampPhase * 0.78) * (imgH * 0.28);
-  const blob2X = Math.cos(lampPhase * 0.92 + 1.8) * (imgW * 0.24);
-  const blob2Y = Math.sin(lampPhase * 1.24 + 0.9) * (imgH * 0.26);
-  const blob3X = Math.sin(lampPhase * 1.48 + 3.4) * (imgW * 0.16);
-  const blob3Y = Math.sin(lampPhase * 0.64 + 2.1) * (imgH * 0.30);
-  const blobScale1 = 1 + Math.sin(lampPhase * 1.7) * 0.14;
-  const blobScale2 = 1 + Math.cos(lampPhase * 1.35) * 0.16;
+  const individualSpeed = 0.22 + seedA * 0.24 + (isHovered ? 0.18 : 0);
+  const lampPhase = animTick * individualSpeed + seedB * Math.PI * 2;
+
+  const blob1X = (seedA - 0.5) * (imgW * 0.46);
+  const blob1Y = Math.sin(lampPhase) * (imgH * 0.24);
+  const blob2X = (seedB - 0.5) * (imgW * 0.48);
+  const blob2Y = -Math.sin(lampPhase * 0.75 + seedC * 4.0) * (imgH * 0.25);
+  const blob3X = (seedC - 0.5) * (imgW * 0.36);
+  const blob3Y = Math.sin(lampPhase * 0.55 + seedA * 5.0) * (imgH * 0.20);
+  const blobScale1 = 1 + Math.sin(lampPhase * 0.9 + seedA * 3) * 0.14;
+  const blobScale2 = 1 + Math.sin(lampPhase * 0.7 + seedB * 5) * 0.16;
+  const colorSatValue = (1.18 + effectiveAliveness * 0.22 + goldenEvolution * 0.35 + (isHovered ? 0.20 : 0)).toFixed(2);
 
   return (
     <svg
       viewBox="0 0 200 136"
       className="w-full h-full pointer-events-none select-none overflow-hidden"
       style={{
-        opacity: Math.min(0.98, (showCutoutImage ? 0.82 : 0.45) + effectiveAliveness * 0.16 + goldenEvolution * 0.10),
+        opacity: Math.min(0.99, (showCutoutImage ? 0.88 : 0.45) + effectiveAliveness * 0.10 + goldenEvolution * 0.10),
         transition: 'opacity 0.2s linear'
       }}
     >
       <defs>
         <radialGradient id={`glow-${w}`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={primaryStroke} stopOpacity={0.28 * fillProgress + goldenEvolution * 0.25} />
-          <stop offset="100%" stopColor={primaryStroke} stopOpacity={0} />
+          <stop offset="0%" stopColor={lampPrimary} stopOpacity={0.32 * fillProgress + goldenEvolution * 0.28} />
+          <stop offset="100%" stopColor={lampPrimary} stopOpacity={0} />
         </radialGradient>
         {showCutoutImage && (
           <>
             <clipPath id={`anm-clip-${w}`}>
               <rect x={imgX} y={imgY} width={imgW} height={imgH} rx="14" ry="14" />
             </clipPath>
+            <filter id={`anm-sat-${w}`} x="-5%" y="-5%" width="110%" height="110%">
+              <feColorMatrix type="saturate" values={colorSatValue} />
+            </filter>
             <radialGradient id={`lamp-blob1-${w}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor={lampWarmth} stopOpacity="0.62" />
-              <stop offset="55%" stopColor={lampPrimary} stopOpacity="0.34" />
+              <stop offset="0%" stopColor={lampWarmth} stopOpacity="0.92" />
+              <stop offset="50%" stopColor={lampPrimary} stopOpacity="0.68" />
               <stop offset="100%" stopColor={lampPrimary} stopOpacity="0" />
             </radialGradient>
             <radialGradient id={`lamp-blob2-${w}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor={lampSecondary} stopOpacity="0.54" />
-              <stop offset="60%" stopColor={lampPrimary} stopOpacity="0.24" />
+              <stop offset="0%" stopColor={lampSecondary} stopOpacity="0.88" />
+              <stop offset="55%" stopColor={lampPrimary} stopOpacity="0.48" />
               <stop offset="100%" stopColor={lampSecondary} stopOpacity="0" />
             </radialGradient>
-            <linearGradient id={`lamp-warm-back-${w}`} x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={lampPrimary} stopOpacity="0.22" />
-              <stop offset="50%" stopColor="#1e293b" stopOpacity="0.12" />
-              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0.20" />
-            </linearGradient>
-            <linearGradient id={`anm-vignette-${w}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#0f172a" stopOpacity="0.06" />
-              <stop offset="65%" stopColor="#0f172a" stopOpacity="0.14" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.44" />
+            <linearGradient
+              id={`lamp-warm-back-${w}`}
+              x1={`${Math.round(seedA * 100)}%`}
+              y1="100%"
+              x2={`${Math.round((1 - seedB) * 100)}%`}
+              y2="0%"
+            >
+              <stop offset="0%" stopColor={lampPrimary} stopOpacity="0.48" />
+              <stop offset="50%" stopColor={lampWarmth} stopOpacity="0.22" />
+              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0.46" />
             </linearGradient>
           </>
         )}
@@ -822,46 +837,42 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       {/* Ambient Aura */}
       <ellipse cx="100" cy="68" rx={76 * pulse} ry={48 * pulse} fill={`url(#glow-${w})`} />
 
-      {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + SUBTLE 1960s MOTION-LAMP UNDERLAY (STEADY, NO WIGGLING) */}
+      {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + CALM 1960s KITSCH LAMP BACKDROP (100% STILL IMAGE, NO ROTATION) */}
       {showCutoutImage && anmFigure && (
-        <g
-          transform={`translate(100, 68) scale(${(0.98 + goldenEvolution * 0.04).toFixed(3)})`}
-        >
+        <g transform="translate(100, 68)">
           <g
             clipPath={`url(#anm-clip-${w})`}
-            opacity={Math.min(1, 0.78 + effectiveAliveness * 0.20 + goldenEvolution * 0.10)}
+            opacity={Math.min(1, 0.88 + effectiveAliveness * 0.12)}
           >
-            {/* 1960s Motion-Lamp Base Chamber */}
+            {/* 1960s Kitsch Lamp Base Chamber (distinct color gradient per figure) */}
             <rect x={imgX} y={imgY} width={imgW} height={imgH} fill={`url(#lamp-warm-back-${w})`} />
 
-            {/* Subtle 1960s Liquid Oil-Lamp Rising & Morphing Thermal Wax Blobs Behind Alpha WebP */}
-            <g opacity={Math.min(0.92, 0.55 + effectiveAliveness * 0.25 + goldenEvolution * 0.20)}>
+            {/* Calm Vertical Thermal Wax Glow Behind Alpha WebP (NO circular orbiting or rotation!) */}
+            <g opacity={Math.min(0.98, 0.72 + effectiveAliveness * 0.18 + goldenEvolution * 0.15)}>
               <ellipse
                 cx={blob1X.toFixed(2)}
                 cy={blob1Y.toFixed(2)}
-                rx={(imgW * 0.42 * blobScale1).toFixed(2)}
-                ry={(imgH * 0.36 / blobScale1).toFixed(2)}
+                rx={(imgW * 0.46 * blobScale1).toFixed(2)}
+                ry={(imgH * 0.38 * blobScale2).toFixed(2)}
                 fill={`url(#lamp-blob1-${w})`}
-                transform={`rotate(${(lampPhase * 18).toFixed(1)}, ${blob1X.toFixed(2)}, ${blob1Y.toFixed(2)})`}
               />
               <ellipse
                 cx={blob2X.toFixed(2)}
                 cy={blob2Y.toFixed(2)}
-                rx={(imgW * 0.38 / blobScale2).toFixed(2)}
-                ry={(imgH * 0.40 * blobScale2).toFixed(2)}
+                rx={(imgW * 0.44 * blobScale2).toFixed(2)}
+                ry={(imgH * 0.42 * blobScale1).toFixed(2)}
                 fill={`url(#lamp-blob2-${w})`}
-                transform={`rotate(${(-lampPhase * 14).toFixed(1)}, ${blob2X.toFixed(2)}, ${blob2Y.toFixed(2)})`}
               />
               <circle
                 cx={blob3X.toFixed(2)}
                 cy={blob3Y.toFixed(2)}
-                r={(Math.min(imgW, imgH) * 0.28 * blobScale1).toFixed(2)}
+                r={(Math.min(imgW, imgH) * 0.32 * blobScale1).toFixed(2)}
                 fill={`url(#lamp-blob1-${w})`}
-                opacity="0.72"
+                opacity="0.82"
               />
             </g>
 
-            {/* Transparent Alpha-Channel WebP Character Cut-Out (1960s Motion-Lamp shines through sky/edges) */}
+            {/* Transparent Alpha-Channel WebP Character Cut-Out (100% Standing Still + Rich Color Saturation) */}
             <image
               href={anmFigure.webpDataUri || anmFigure.dataUri}
               x={imgX}
@@ -869,6 +880,7 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
               width={imgW}
               height={imgH}
               preserveAspectRatio="xMidYMid meet"
+              filter={`url(#anm-sat-${w})`}
             />
           </g>
 
@@ -899,37 +911,9 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
         </g>
       )}
 
-      {/* GOLDEN CELL EVOLUTION STAGE 2, 3 & 4: Evolving Satellites, Crown & Mini Rocket */}
-      {devStage >= 2 && (
-        <g opacity={0.45 + goldenEvolution * 0.55}>
-          <ellipse
-            cx="100"
-            cy="70"
-            rx={78 + goldenEvolution * 6}
-            ry={49 + goldenEvolution * 4}
-            fill="none"
-            stroke={primaryStroke}
-            strokeWidth={1.2 + goldenEvolution * 1.2}
-            strokeDasharray="5 7"
-          />
-          {/* Orbiting Knowledge Sparks */}
-          {[0, 1, 2].slice(0, devStage - 1).map(orbIdx => {
-            const angle = animTick * 1.8 + (orbIdx * Math.PI * 2) / 3;
-            const ox = 100 + Math.cos(angle) * 78;
-            const oy = 70 + Math.sin(angle) * 49;
-            return (
-              <g key={orbIdx} transform={`translate(${ox}, ${oy})`}>
-                <circle r={4 + goldenEvolution * 2} fill={primaryStroke} opacity="0.4" />
-                <circle r="2.2" fill="#fffbeb" />
-              </g>
-            );
-          })}
-        </g>
-      )}
-
-      {/* Stage 4 Golden Cell Crown / Brain-Rocket Resonance Badge */}
+      {/* Stage 4 Golden Cell Crown / Brain-Rocket Resonance Badge (Static, No Orbiting Circles) */}
       {devStage >= 3 && isTarget && (
-        <g transform={`translate(100, ${16 + bob * 0.4}) scale(${0.85 + goldenEvolution * 0.25})`} opacity={goldenEvolution}>
+        <g transform="translate(100, 14)" opacity={goldenEvolution}>
           <polygon points="-14,6 -9,-6 -3,2 0,-9 3,2 9,-6 14,6" fill="#f59e0b" fillOpacity="0.45" stroke="#fde68a" strokeWidth="1.5" />
         </g>
       )}
