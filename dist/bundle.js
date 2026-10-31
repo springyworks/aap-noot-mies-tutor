@@ -389,6 +389,79 @@
     "duif",
     "schapen"
   ];
+  var DIGRAPHS = ["sch", "oe", "ie", "eu", "ui", "ei", "ij", "au", "ou", "aa", "ee", "oo", "uu", "ng"];
+  var SAME_LETTER_DOUBLES = ["aa", "ee", "oo", "uu"];
+  var findDigraphGroups = (word) => {
+    const w = word.toLowerCase();
+    const groups = [];
+    let i = 0;
+    while (i < w.length) {
+      const hit = DIGRAPHS.find((d) => w.startsWith(d, i));
+      if (hit && w.length > hit.length) {
+        groups.push({ start: i, text: hit });
+        i += hit.length;
+      } else {
+        i++;
+      }
+    }
+    return groups;
+  };
+  var digraphMask = (word) => {
+    const mask = new Array(word.length).fill(false);
+    findDigraphGroups(word).forEach((g) => {
+      for (let k = 0; k < g.text.length; k++) mask[g.start + k] = true;
+    });
+    return mask;
+  };
+  var wordFitsComplexity = (word, c) => {
+    if (c === "all") return true;
+    const groups = findDigraphGroups(word);
+    if (c === "simple") return groups.length === 0;
+    return groups.every((g) => SAME_LETTER_DOUBLES.includes(g.text));
+  };
+  var getAnmPool = (c) => {
+    const filtered = AAP_NOOT_MIES_WORDS.filter((w) => wordFitsComplexity(w, c));
+    return filtered.length >= 6 ? filtered : AAP_NOOT_MIES_WORDS;
+  };
+  var summarizeUsability = (trials) => {
+    const n = trials.length;
+    if (n === 0) {
+      return { trials: 0, hitRate: 0, meanId: 0, meanMtMs: 0, meanThroughput: 0, effectiveWidthPx: null, lastHickBits: 0, fittsA: null, fittsB: null };
+    }
+    const mean = (xs) => xs.reduce((s, v) => s + v, 0) / xs.length;
+    const ids = trials.map((t) => t.id2d);
+    const mts = trials.map((t) => t.mtMs);
+    let we = null;
+    if (n >= 4) {
+      const dx = trials.map((t) => t.endpointDxPx);
+      const m = mean(dx);
+      const sd = Math.sqrt(mean(dx.map((v) => (v - m) ** 2)));
+      we = Number((4.133 * sd).toFixed(1));
+    }
+    let a = null;
+    let b = null;
+    if (n >= 5) {
+      const mi = mean(ids);
+      const mm = mean(mts);
+      const varI = mean(ids.map((v) => (v - mi) ** 2));
+      if (varI > 1e-6) {
+        const cov = mean(ids.map((v, i) => (v - mi) * (mts[i] - mm)));
+        b = cov / varI;
+        a = mm - b * mi;
+      }
+    }
+    return {
+      trials: n,
+      hitRate: Number((trials.filter((t) => t.hit).length / n).toFixed(3)),
+      meanId: Number(mean(ids).toFixed(3)),
+      meanMtMs: Math.round(mean(mts)),
+      meanThroughput: Number(mean(trials.map((t) => t.throughputBitsPerS)).toFixed(3)),
+      effectiveWidthPx: we,
+      lastHickBits: trials[n - 1].hickBits,
+      fittsA: a === null ? null : Math.round(a),
+      fittsB: b === null ? null : Math.round(b)
+    };
+  };
   var PRAISES = {
     en: [
       "Well done sweetheart, you found it right away!",
@@ -1820,6 +1893,8 @@
     if (intro !== null && /^[0-2]$/.test(intro)) out.intro = parseInt(intro, 10);
     if (p.has("kin")) out.kin = p.get("kin") === "1";
     if (p.has("pin")) out.pin = p.get("pin") === "1";
+    const cx = p.get("cx");
+    if (cx === "simple" || cx === "double" || cx === "all") out.cx = cx;
     const t = p.get("t");
     if (t && /^[a-z]{1,12}$/i.test(t)) out.t = t.toLowerCase();
     return out;
@@ -1835,6 +1910,12 @@
     const [showDevTools, setShowDevTools] = useState(SHARED_VIEW.dev ?? false);
     const [shareToast, setShareToast] = useState(null);
     const sharedTargetRef = useRef(SHARED_VIEW.t);
+    const [complexity, setComplexity] = useState(SHARED_VIEW.cx ?? "simple");
+    const usabilityTrialsRef = useRef([]);
+    const roundPointerStartRef = useRef(null);
+    const [usabilityStats, setUsabilityStats] = useState(() => summarizeUsability([]));
+    const [maatjeOpen, setMaatjeOpen] = useState(typeof window !== "undefined" && window.innerWidth >= 1700);
+    const [maatjeHistory, setMaatjeHistory] = useState([]);
     const [pinholeEnabled, setPinholeEnabled] = useState(SHARED_VIEW.pin ?? false);
     const [pointerPos, setPointerPos] = useState({
       x: typeof window !== "undefined" ? Math.round(window.innerWidth / 2) : 500,
@@ -2146,9 +2227,9 @@
       }
       kineticBodiesRef.current = bodies;
     }, [level]);
-    const generateRound = useCallback((currentLevel, nextStreak = streak, modeOverride = curriculumMode) => {
+    const generateRound = useCallback((currentLevel, nextStreak = streak, modeOverride = curriculumMode, complexityOverride = complexity) => {
       const isAapNootMies = modeOverride === "aapnootmies";
-      const pool = isAapNootMies ? AAP_NOOT_MIES_WORDS : DICTIONARIES[language][currentLevel] || DICTIONARIES[language][0];
+      const pool = isAapNootMies ? getAnmPool(complexityOverride) : DICTIONARIES[language][currentLevel] || DICTIONARIES[language][0];
       let numWords = isAapNootMies ? 6 : 4;
       if (!isAapNootMies) {
         if (currentLevel >= 3) numWords = 6;
@@ -2182,6 +2263,7 @@
       lastInteraction.current = Date.now();
       idlePhaseRef.current = 0;
       spokenStageRef.current = 0;
+      roundPointerStartRef.current = lastPointerPos.current.x || lastPointerPos.current.y ? { x: lastPointerPos.current.x, y: lastPointerPos.current.y } : null;
       goldenSpokenStageRef.current = 0;
       firstGoldenHoverMsRef.current = null;
       hoveredWordRef.current = null;
@@ -2209,7 +2291,7 @@
         language === "nl" ? `[${isAapNootMies ? "Aap-Noot-Mies" : `Level ${currentLevel}`}] Doel="${targetWord}" | Zelfde beginletter=${sameStartCount}/${finalWords.length} | Hint-wachttijd=${throttleSec}s` : `[Round Start] Target="${targetWord}" (L${currentLevel}) | Shared 1st char=${sameStartCount}/${finalWords.length} | Hint delay=${throttleSec}s`
       );
       speakWord(targetWord, isAapNootMies ? "nl" : void 0);
-    }, [language, streak, curriculumMode, initKineticBodies, speakWord]);
+    }, [language, streak, curriculumMode, complexity, initKineticBodies, speakWord]);
     useEffect(() => {
       if (started && !currentRound) {
         generateRound(level, streak, curriculumMode);
@@ -2220,17 +2302,18 @@
       if (!t || !currentRound) return;
       sharedTargetRef.current = void 0;
       if (currentRound.target === t) return;
-      const pool = curriculumMode === "aapnootmies" ? AAP_NOOT_MIES_WORDS : DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS;
+      const pool = curriculumMode === "aapnootmies" ? getAnmPool(complexity) : DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS;
       if (!pool.includes(t)) return;
       const others = currentRound.options.filter((o) => o !== currentRound.target && o !== t);
       const opts = [t, ...others].slice(0, currentRound.options.length).sort(() => 0.5 - Math.random());
       setCurrentRound({ target: t, options: opts });
-    }, [currentRound, curriculumMode, language, level]);
+    }, [currentRound, curriculumMode, language, level, complexity]);
     const buildShareUrl = useCallback(() => {
       const p = new URLSearchParams();
       p.set("go", "1");
       p.set("cur", curriculumMode);
       p.set("lvl", String(level));
+      p.set("cx", complexity);
       p.set("lang", language);
       p.set("fig", anmFigureMode);
       p.set("intro", String(introspectionLevel));
@@ -2241,7 +2324,7 @@
       if (currentRound?.target) p.set("t", currentRound.target);
       const base = typeof window !== "undefined" ? window.location.href.split("#")[0].split("?")[0] : "";
       return `${base}#${p.toString()}`;
-    }, [curriculumMode, level, language, anmFigureMode, introspectionLevel, inspectMode, showDevTools, kineticMode, pinholeEnabled, currentRound]);
+    }, [curriculumMode, level, complexity, language, anmFigureMode, introspectionLevel, inspectMode, showDevTools, kineticMode, pinholeEnabled, currentRound]);
     useEffect(() => {
       if (!started || typeof window === "undefined") return;
       try {
@@ -2517,7 +2600,9 @@
           },
           derivedHardData: derived,
           telemetryPointCount: telemetryData.current.length,
-          telemetry: telemetryData.current
+          telemetry: telemetryData.current,
+          complexity,
+          usabilityLaws: { ...summarizeUsability(usabilityTrialsRef.current), recentTrials: usabilityTrialsRef.current.slice(-20) }
         };
       }
       const saved = localStorage.getItem("tutor_last_telemetry");
@@ -2567,7 +2652,9 @@
       hesitationIndex,
       currentRound,
       introspectionLog,
-      activeVoiceName
+      activeVoiceName,
+      complexity,
+      usabilityStats
     ]);
     const generateJsonDump = useCallback(() => {
       const payload = getTelemetryPayload();
@@ -3147,6 +3234,33 @@
       const rect = e.currentTarget.getBoundingClientRect();
       const shotX = e.clientX || rect.left + rect.width / 2;
       const shotY = e.clientY || rect.top + rect.height / 2;
+      {
+        const start = lastPointerPos.current.x || lastPointerPos.current.y ? lastPointerPos.current : { x: pointerPos.x, y: pointerPos.y };
+        const startPt = roundPointerStartRef.current || start;
+        const D = Math.hypot(shotX - startPt.x, shotY - startPt.y);
+        const W = Math.max(1, rect.width);
+        const H = Math.max(1, rect.height);
+        const id2d = Math.log2(Math.sqrt((D / W) ** 2 + (D / H) ** 2) + 1);
+        const mtMs = Math.max(50, Date.now() - roundStartTime.current);
+        const trial = {
+          word,
+          target: currentRound.target,
+          hit: isHit,
+          distancePx: Math.round(D),
+          widthPx: Math.round(W),
+          heightPx: Math.round(H),
+          id2d: Number(id2d.toFixed(3)),
+          mtMs,
+          throughputBitsPerS: Number((id2d / mtMs * 1e3).toFixed(3)),
+          hickBits: Number(Math.log2(currentRound.options.length + 1).toFixed(3)),
+          endpointDxPx: Math.round(shotX - (rect.left + rect.width / 2)),
+          complexity
+        };
+        usabilityTrialsRef.current.push(trial);
+        if (usabilityTrialsRef.current.length > 200) usabilityTrialsRef.current.shift();
+        setUsabilityStats(summarizeUsability(usabilityTrialsRef.current));
+        logTimelineEvent("usability_trial", { ...trial });
+      }
       const newShot = {
         id: Date.now() + Math.random(),
         x: shotX,
@@ -3304,8 +3418,79 @@
         }
       });
     };
+    const changeComplexity = (c) => {
+      initAudio();
+      setComplexity(c);
+      setCurriculumMode("aapnootmies");
+      localStorage.setItem("tutor_curriculum", "aapnootmies");
+      setLanguage("nl");
+      localStorage.setItem("tutor_lang", "nl");
+      generateRound(level, streak, "aapnootmies", c);
+    };
+    const maatjeLine = useMemo(() => {
+      const nl = language === "nl";
+      const t = currentRound?.target || "";
+      if (!t) return nl ? "Hoi! Zullen we samen lezen?" : "Hi! Shall we read together?";
+      const single = t.length === 1;
+      const groups = findDigraphGroups(t);
+      if (elapsedTime > baseThreshold + 4e3 && groups.length > 0) {
+        const g = groups[0].text;
+        return nl ? `Zie je het streepje? '${g}' zijn twee letters, maar je zegt \xE9\xE9n klank.` : `See the little line? '${g}' is two letters, but one sound.`;
+      }
+      if (elapsedTime > baseThreshold) {
+        return nl ? "Neem rustig je tijd. Kijk goed naar het plaatje." : "Take your time. Look carefully at the picture.";
+      }
+      if (streak >= 3) {
+        return nl ? `Wat knap! ${streak} keer goed achter elkaar.` : `Well done! ${streak} right in a row.`;
+      }
+      if (single) {
+        return nl ? `Zoek de letter '${t}'. Zeg hem zacht mee.` : `Find the letter '${t}'. Say it softly.`;
+      }
+      return nl ? `Zoek het woordje '${t}'.` : `Find the little word '${t}'.`;
+    }, [language, currentRound, elapsedTime, baseThreshold, streak]);
+    useEffect(() => {
+      setMaatjeHistory((prev) => prev[prev.length - 1] === maatjeLine ? prev : [...prev, maatjeLine].slice(-4));
+    }, [maatjeLine]);
+    const renderMaatje = () => {
+      const nl = language === "nl";
+      const stages = [
+        { key: "simple", label: nl ? "1 \xB7 Eenvoudig" : "1 \xB7 Simple", sub: nl ? "zonder dubbelklank" : "no double sounds" },
+        { key: "double", label: nl ? "2 \xB7 Lange klanken" : "2 \xB7 Long sounds", sub: "aa \xB7 ee \xB7 oo \xB7 uu" },
+        { key: "all", label: nl ? "3 \xB7 Alles" : "3 \xB7 All", sub: "oe \xB7 ie \xB7 eu \xB7 ui \u2026" }
+      ];
+      const u = usabilityStats;
+      const hickNow = currentRound ? Math.log2(currentRound.options.length + 1) : 0;
+      return /* @__PURE__ */ react_shim_default.createElement("div", { className: "space-y-2.5 text-slate-100" }, /* @__PURE__ */ react_shim_default.createElement(
+        "button",
+        {
+          onClick: () => {
+            initAudio();
+            speakText(maatjeLine, { cancelFirst: true, bypassSilence: true });
+          },
+          className: "w-full text-left rounded-2xl rounded-bl-sm bg-purple-900/70 border border-purple-400/50 px-3 py-2 text-sm font-semibold leading-snug active:scale-[0.98]"
+        },
+        maatjeLine,
+        " ",
+        /* @__PURE__ */ react_shim_default.createElement("span", { className: "opacity-60" }, "\u{1F50A}")
+      ), maatjeHistory.slice(0, -1).slice(-2).reverse().map((h, i) => /* @__PURE__ */ react_shim_default.createElement("div", { key: `${h}-${i}`, className: "text-[11px] text-slate-400 px-2", style: { opacity: 0.7 - i * 0.25 } }, h)), /* @__PURE__ */ react_shim_default.createElement("div", null, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1" }, nl ? "Wat lezen we? (as A)" : "What do we read? (axis A)"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "grid grid-cols-1 gap-1" }, stages.map((s) => {
+        const active = curriculumMode === "aapnootmies" && complexity === s.key;
+        return /* @__PURE__ */ react_shim_default.createElement(
+          "button",
+          {
+            key: s.key,
+            onClick: () => changeComplexity(s.key),
+            className: `flex items-center justify-between rounded-xl px-2.5 py-1.5 text-xs border ${active ? "bg-purple-600 border-purple-200 text-white" : "bg-slate-800/80 border-slate-700 text-slate-300"}`
+          },
+          /* @__PURE__ */ react_shim_default.createElement("span", { className: "font-bold" }, s.label),
+          /* @__PURE__ */ react_shim_default.createElement("span", { className: "opacity-80" }, s.sub, " \xB7 ", getAnmPool(s.key).length)
+        );
+      })), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[10px] text-slate-400 mt-1 leading-snug" }, nl ? "Hulp (as B: \u{1F4AC} uitleg) en taal staan los hiervan. Een dun streepje onder twee letters = \xE9\xE9n klank." : "Support (axis B: \u{1F4AC} guidance) and language are independent of this. A thin line under two letters = one sound.")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-950/70 border border-slate-800 p-2 font-mono text-[10px] leading-relaxed text-emerald-300" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold mb-0.5" }, "\u{1F4C8} ", nl ? "Live meting" : "Live analytics"), /* @__PURE__ */ react_shim_default.createElement("div", null, "Hick: ", hickNow.toFixed(2), " bit (", currentRound?.options.length ?? 0, " ", nl ? "keuzes" : "choices", ")"), /* @__PURE__ */ react_shim_default.createElement("div", null, nl ? "Pogingen" : "Trials", ": ", u.trials, " \xB7 ", nl ? "goed" : "hit", " ", (u.hitRate * 100).toFixed(0), "%"), /* @__PURE__ */ react_shim_default.createElement("div", null, "Fitts ID\u0304: ", u.meanId.toFixed(2), " bit \xB7 TP: ", u.meanThroughput.toFixed(2), " bit/s"), /* @__PURE__ */ react_shim_default.createElement("div", null, nl ? "Tijd" : "Time", ": ", u.meanMtMs, " ms \xB7 We: ", u.effectiveWidthPx === null ? "\u2014" : `${u.effectiveWidthPx}px`), /* @__PURE__ */ react_shim_default.createElement("div", null, "MT = ", u.fittsA === null ? "\u2014" : u.fittsA, " + ", u.fittsB === null ? "\u2014" : u.fittsB, "\xB7ID")));
+    };
     const renderWordWithSmartColors = (word, targetWord) => {
-      if (!targetWord) return word;
+      const dMask = word.length > 1 ? digraphMask(word) : [];
+      if (!targetWord) {
+        return word.split("").map((char, idx) => /* @__PURE__ */ react_shim_default.createElement("span", { key: `${char}-${idx}`, className: "relative inline-block" }, char, dMask[idx] && /* @__PURE__ */ react_shim_default.createElement("span", { className: "absolute left-0 right-0 bottom-0 h-[2px] rounded-full bg-purple-300/80 pointer-events-none" })));
+      }
       return word.split("").map((char, idx) => {
         const prefixMatches = word.substring(0, idx) === targetWord.substring(0, idx);
         let overlayOpacity = 0;
@@ -3316,7 +3501,7 @@
           const fadeDuration = 3500;
           overlayOpacity = Math.min(1, Math.max(0, (elapsedTime - charDelay) / fadeDuration));
         }
-        return /* @__PURE__ */ react_shim_default.createElement("span", { key: `${char}-${idx}`, className: "relative inline-block" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-slate-100" }, char), prefixMatches && /* @__PURE__ */ react_shim_default.createElement(
+        return /* @__PURE__ */ react_shim_default.createElement("span", { key: `${char}-${idx}`, className: "relative inline-block" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-slate-100" }, char), dMask[idx] && /* @__PURE__ */ react_shim_default.createElement("span", { className: "absolute left-0 right-0 bottom-0 h-[2px] rounded-full bg-purple-300/80 pointer-events-none" }), prefixMatches && /* @__PURE__ */ react_shim_default.createElement(
           "span",
           {
             className: "absolute left-0 top-0 pointer-events-none",
@@ -3658,6 +3843,14 @@
         );
       }))),
       showDevTools ? /* @__PURE__ */ react_shim_default.createElement("footer", { className: "relative z-30 mx-2.5 sm:mx-4 mb-2 px-3 py-1.5 rounded-xl bg-slate-800/75 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-300" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center gap-2 truncate max-w-full sm:max-w-[60%]" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold uppercase shrink-0" }, isVoiceSilent ? "\u{1F507} Standby:" : `\u{1F5E3}\uFE0F L${introspectionLevel}:`), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-slate-200 truncate" }, introspectionLog)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex flex-wrap items-center gap-3 text-[11px] text-slate-400 shrink-0" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300/90" }, "Hover: ", hoveredWord ? `"${hoveredWord}" (${cellDwellState[hoveredWord] || 0}ms)` : "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "2D-FFT: ", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz"), /* @__PURE__ */ react_shim_default.createElement("span", null, "PTS: ", telemetryData.current.length))) : /* @__PURE__ */ react_shim_default.createElement("div", { className: "h-2 sm:h-3" }),
+      /* @__PURE__ */ react_shim_default.createElement("div", { className: "hidden sm:block fixed left-3 bottom-4 z-30" }, maatjeOpen ? /* @__PURE__ */ react_shim_default.createElement("div", { className: "w-64 max-h-[78vh] overflow-y-auto rounded-2xl border-2 border-purple-500/60 bg-slate-950/92 backdrop-blur p-3 shadow-[0_0_30px_rgba(126,34,206,0.35)]" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sm font-black text-purple-200" }, "\u{1F916} Maatje"), /* @__PURE__ */ react_shim_default.createElement("button", { onClick: () => setMaatjeOpen(false), className: "px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-xs" }, "\u2014")), renderMaatje()) : /* @__PURE__ */ react_shim_default.createElement(
+        "button",
+        {
+          onClick: () => setMaatjeOpen(true),
+          className: "px-3 py-2 rounded-2xl bg-purple-900/80 border-2 border-purple-400/70 text-purple-100 text-sm font-bold shadow-lg hover:bg-purple-800"
+        },
+        "\u{1F916} Maatje"
+      )),
       /* @__PURE__ */ react_shim_default.createElement("div", { className: "h-20 sm:hidden shrink-0" }),
       /* @__PURE__ */ react_shim_default.createElement(
         MobileBottomSheet,
@@ -3694,6 +3887,7 @@
             "\u{1F517}"
           ))
         },
+        /* @__PURE__ */ react_shim_default.createElement("section", { className: "rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3" }, /* @__PURE__ */ react_shim_default.createElement("h4", { className: "text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2" }, "\u{1F916} Maatje"), renderMaatje()),
         /* @__PURE__ */ react_shim_default.createElement("section", { className: "rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3" }, /* @__PURE__ */ react_shim_default.createElement("h4", { className: "text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2" }, language === "nl" ? "\u{1F4DA} Leren" : "\u{1F4DA} Learning"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex gap-2 mb-2" }, /* @__PURE__ */ react_shim_default.createElement(
           "button",
           {

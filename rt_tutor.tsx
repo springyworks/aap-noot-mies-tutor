@@ -150,6 +150,8 @@ export interface TelemetryDumpPayload {
   derivedHardData: DerivedHardData;
   telemetryPointCount: number;
   telemetry: TelemetryPoint[];
+  complexity?: WordComplexity;
+  usabilityLaws?: UsabilitySummary & { recentTrials: UsabilityTrial[] };
 }
 
 export interface DrillThroughEventEntry {
@@ -263,6 +265,135 @@ const AAP_NOOT_MIES_WORDS: string[] = [
   'teun', 'vuur', 'gijs', 'lam', 'kees', 'bok',
   'weide', 'does', 'hok', 'duif', 'schapen'
 ];
+
+// ============================================================================
+// ORTHOGONAL AXIS: WORD COMPLEXITY (independent of level, language, hint-support & figure mode)
+// Dutch kindergarten practice: start with simple words WITHOUT double sounds (klankgroepen such as
+// oe, ie, eu, ui, ei, ij, au, ou, aa, ee, oo, uu, sch, ng). Those come later — then a thin line goes under them.
+// ============================================================================
+
+export type WordComplexity = 'simple' | 'double' | 'all';
+const COMPLEXITY_ORDER: WordComplexity[] = ['simple', 'double', 'all'];
+const DIGRAPHS: string[] = ['sch', 'oe', 'ie', 'eu', 'ui', 'ei', 'ij', 'au', 'ou', 'aa', 'ee', 'oo', 'uu', 'ng'];
+/** Same-letter doubles (aa ee oo uu) are the gentlest double sounds; they open stage 2. */
+const SAME_LETTER_DOUBLES: string[] = ['aa', 'ee', 'oo', 'uu'];
+
+interface DigraphGroup {
+  start: number;
+  text: string;
+}
+
+/** Greedy left-to-right scan for double-sound groups (longest first). A whole 2-letter word is never a group. */
+const findDigraphGroups = (word: string): DigraphGroup[] => {
+  const w = word.toLowerCase();
+  const groups: DigraphGroup[] = [];
+  let i = 0;
+  while (i < w.length) {
+    const hit = DIGRAPHS.find(d => w.startsWith(d, i));
+    if (hit && w.length > hit.length) {
+      groups.push({ start: i, text: hit });
+      i += hit.length;
+    } else {
+      i++;
+    }
+  }
+  return groups;
+};
+
+/** Per character: does it belong to a double-sound group? (used for the thin underline) */
+const digraphMask = (word: string): boolean[] => {
+  const mask: boolean[] = new Array(word.length).fill(false);
+  findDigraphGroups(word).forEach(g => {
+    for (let k = 0; k < g.text.length; k++) mask[g.start + k] = true;
+  });
+  return mask;
+};
+
+/** 'simple' = no double sounds; 'double' = only aa/ee/oo/uu allowed; 'all' = everything. */
+const wordFitsComplexity = (word: string, c: WordComplexity): boolean => {
+  if (c === 'all') return true;
+  const groups = findDigraphGroups(word);
+  if (c === 'simple') return groups.length === 0;
+  return groups.every(g => SAME_LETTER_DOUBLES.includes(g.text));
+};
+
+/** The 17 Leesplankje figures filtered by complexity (never fewer than 6 so a round can always be built). */
+const getAnmPool = (c: WordComplexity): string[] => {
+  const filtered = AAP_NOOT_MIES_WORDS.filter(w => wordFitsComplexity(w, c));
+  return filtered.length >= 6 ? filtered : AAP_NOOT_MIES_WORDS;
+};
+
+// ============================================================================
+// REAL-TIME USABILITY LAWS (per click): Fitts 2D index of difficulty, throughput, effective width,
+// Hick-Hyman choice entropy and a live Fitts regression  MT = a + b * ID  (needs >= 5 trials)
+// ============================================================================
+
+export interface UsabilityTrial {
+  word: string;
+  target: string;
+  hit: boolean;
+  distancePx: number;
+  widthPx: number;
+  heightPx: number;
+  id2d: number;
+  mtMs: number;
+  throughputBitsPerS: number;
+  hickBits: number;
+  endpointDxPx: number;
+  complexity: WordComplexity;
+}
+
+export interface UsabilitySummary {
+  trials: number;
+  hitRate: number;
+  meanId: number;
+  meanMtMs: number;
+  meanThroughput: number;
+  effectiveWidthPx: number | null;
+  lastHickBits: number;
+  fittsA: number | null;
+  fittsB: number | null;
+}
+
+const summarizeUsability = (trials: UsabilityTrial[]): UsabilitySummary => {
+  const n = trials.length;
+  if (n === 0) {
+    return { trials: 0, hitRate: 0, meanId: 0, meanMtMs: 0, meanThroughput: 0, effectiveWidthPx: null, lastHickBits: 0, fittsA: null, fittsB: null };
+  }
+  const mean = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
+  const ids = trials.map(t => t.id2d);
+  const mts = trials.map(t => t.mtMs);
+  let we: number | null = null;
+  if (n >= 4) {
+    const dx = trials.map(t => t.endpointDxPx);
+    const m = mean(dx);
+    const sd = Math.sqrt(mean(dx.map(v => (v - m) ** 2)));
+    we = Number((4.133 * sd).toFixed(1)); // sqrt(2*pi*e) * sigma (Welford / Crossman effective width)
+  }
+  let a: number | null = null;
+  let b: number | null = null;
+  if (n >= 5) {
+    const mi = mean(ids);
+    const mm = mean(mts);
+    const varI = mean(ids.map(v => (v - mi) ** 2));
+    if (varI > 1e-6) {
+      const cov = mean(ids.map((v, i) => (v - mi) * (mts[i] - mm)));
+      b = cov / varI;
+      a = mm - b * mi;
+    }
+  }
+  return {
+    trials: n,
+    hitRate: Number((trials.filter(t => t.hit).length / n).toFixed(3)),
+    meanId: Number(mean(ids).toFixed(3)),
+    meanMtMs: Math.round(mean(mts)),
+    meanThroughput: Number(mean(trials.map(t => t.throughputBitsPerS)).toFixed(3)),
+    effectiveWidthPx: we,
+    lastHickBits: trials[n - 1].hickBits,
+    fittsA: a === null ? null : Math.round(a),
+    fittsB: b === null ? null : Math.round(b)
+  };
+};
 
 const PRAISES: Record<LanguageCode, string[]> = {
   en: [
@@ -2215,6 +2346,7 @@ const MobileBottomSheet = ({
 // ============================================================================
 
 interface SharedViewState {
+  cx?: WordComplexity;
   go: boolean;
   cur?: CurriculumMode;
   lvl?: number;
@@ -2249,6 +2381,8 @@ const parseSharedView = (): SharedViewState => {
   if (intro !== null && /^[0-2]$/.test(intro)) out.intro = parseInt(intro, 10) as IntrospectionLevel;
   if (p.has('kin')) out.kin = p.get('kin') === '1';
   if (p.has('pin')) out.pin = p.get('pin') === '1';
+  const cx = p.get('cx');
+  if (cx === 'simple' || cx === 'double' || cx === 'all') out.cx = cx;
   const t = p.get('t');
   if (t && /^[a-z]{1,12}$/i.test(t)) out.t = t.toLowerCase();
   return out;
@@ -2267,6 +2401,13 @@ export default function RTTutor() {
   const [showDevTools, setShowDevTools] = useState<boolean>(SHARED_VIEW.dev ?? false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const sharedTargetRef = useRef<string | undefined>(SHARED_VIEW.t);
+  // ORTHOGONAL AXIS A: word complexity (what is read). Independent of axis B (support/hints) and of level/language.
+  const [complexity, setComplexity] = useState<WordComplexity>(SHARED_VIEW.cx ?? 'simple');
+  const usabilityTrialsRef = useRef<UsabilityTrial[]>([]);
+  const roundPointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [usabilityStats, setUsabilityStats] = useState<UsabilitySummary>(() => summarizeUsability([]));
+  const [maatjeOpen, setMaatjeOpen] = useState<boolean>(typeof window !== 'undefined' && window.innerWidth >= 1700);
+  const [maatjeHistory, setMaatjeHistory] = useState<string[]>([]);
 
   // Usability Research Pinhole Spotlight State
   const [pinholeEnabled, setPinholeEnabled] = useState<boolean>(SHARED_VIEW.pin ?? false);
@@ -2626,11 +2767,12 @@ export default function RTTutor() {
   const generateRound = useCallback((
     currentLevel: number,
     nextStreak: number = streak,
-    modeOverride: CurriculumMode = curriculumMode
+    modeOverride: CurriculumMode = curriculumMode,
+    complexityOverride: WordComplexity = complexity
   ) => {
     const isAapNootMies = modeOverride === 'aapnootmies';
     const pool = isAapNootMies
-      ? AAP_NOOT_MIES_WORDS
+      ? getAnmPool(complexityOverride)
       : (DICTIONARIES[language][currentLevel] || DICTIONARIES[language][0]);
 
     let numWords = isAapNootMies ? 6 : 4;
@@ -2670,6 +2812,9 @@ export default function RTTutor() {
     lastInteraction.current = Date.now();
     idlePhaseRef.current = 0;
     spokenStageRef.current = 0;
+    roundPointerStartRef.current = (lastPointerPos.current.x || lastPointerPos.current.y)
+      ? { x: lastPointerPos.current.x, y: lastPointerPos.current.y }
+      : null;
     goldenSpokenStageRef.current = 0;
     firstGoldenHoverMsRef.current = null;
     hoveredWordRef.current = null;
@@ -2706,7 +2851,7 @@ export default function RTTutor() {
     );
 
     speakWord(targetWord, isAapNootMies ? 'nl' : undefined);
-  }, [language, streak, curriculumMode, initKineticBodies, speakWord]);
+  }, [language, streak, curriculumMode, complexity, initKineticBodies, speakWord]);
 
   useEffect(() => {
     if (started && !currentRound) {
@@ -2721,13 +2866,13 @@ export default function RTTutor() {
     sharedTargetRef.current = undefined;
     if (currentRound.target === t) return;
     const pool = curriculumMode === 'aapnootmies'
-      ? AAP_NOOT_MIES_WORDS
+      ? getAnmPool(complexity)
       : (DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS);
     if (!pool.includes(t)) return;
     const others = currentRound.options.filter(o => o !== currentRound.target && o !== t);
     const opts = [t, ...others].slice(0, currentRound.options.length).sort(() => 0.5 - Math.random());
     setCurrentRound({ target: t, options: opts });
-  }, [currentRound, curriculumMode, language, level]);
+  }, [currentRound, curriculumMode, language, level, complexity]);
 
   // DEEP LINK: keep the address bar a live, shareable "status drop" of the current view
   const buildShareUrl = useCallback((): string => {
@@ -2735,6 +2880,7 @@ export default function RTTutor() {
     p.set('go', '1');
     p.set('cur', curriculumMode);
     p.set('lvl', String(level));
+    p.set('cx', complexity);
     p.set('lang', language);
     p.set('fig', anmFigureMode);
     p.set('intro', String(introspectionLevel));
@@ -2745,7 +2891,7 @@ export default function RTTutor() {
     if (currentRound?.target) p.set('t', currentRound.target);
     const base = typeof window !== 'undefined' ? window.location.href.split('#')[0].split('?')[0] : '';
     return `${base}#${p.toString()}`;
-  }, [curriculumMode, level, language, anmFigureMode, introspectionLevel, inspectMode, showDevTools, kineticMode, pinholeEnabled, currentRound]);
+  }, [curriculumMode, level, complexity, language, anmFigureMode, introspectionLevel, inspectMode, showDevTools, kineticMode, pinholeEnabled, currentRound]);
 
   useEffect(() => {
     if (!started || typeof window === 'undefined') return;
@@ -3110,7 +3256,9 @@ export default function RTTutor() {
         },
         derivedHardData: derived,
         telemetryPointCount: telemetryData.current.length,
-        telemetry: telemetryData.current
+        telemetry: telemetryData.current,
+        complexity,
+        usabilityLaws: { ...summarizeUsability(usabilityTrialsRef.current), recentTrials: usabilityTrialsRef.current.slice(-20) }
       };
     }
     const saved = localStorage.getItem('tutor_last_telemetry');
@@ -3161,7 +3309,9 @@ export default function RTTutor() {
     hesitationIndex,
     currentRound,
     introspectionLog,
-    activeVoiceName
+    activeVoiceName,
+    complexity,
+    usabilityStats
   ]);
 
   const generateJsonDump = useCallback(() => {
@@ -3837,6 +3987,37 @@ export default function RTTutor() {
     const rect = e.currentTarget.getBoundingClientRect();
     const shotX = e.clientX || rect.left + rect.width / 2;
     const shotY = e.clientY || rect.top + rect.height / 2;
+
+    // USABILITY LAWS (real-time): Fitts (2D, Accot-Zhai/MacKenzie form with effective width) + Hick-Hyman choice entropy
+    {
+      const start = (lastPointerPos.current.x || lastPointerPos.current.y)
+        ? lastPointerPos.current
+        : { x: pointerPos.x, y: pointerPos.y };
+      const startPt = roundPointerStartRef.current || start;
+      const D = Math.hypot(shotX - startPt.x, shotY - startPt.y);
+      const W = Math.max(1, rect.width);
+      const H = Math.max(1, rect.height);
+      const id2d = Math.log2(Math.sqrt((D / W) ** 2 + (D / H) ** 2) + 1);
+      const mtMs = Math.max(50, Date.now() - roundStartTime.current);
+      const trial: UsabilityTrial = {
+        word,
+        target: currentRound.target,
+        hit: isHit,
+        distancePx: Math.round(D),
+        widthPx: Math.round(W),
+        heightPx: Math.round(H),
+        id2d: Number(id2d.toFixed(3)),
+        mtMs,
+        throughputBitsPerS: Number(((id2d / mtMs) * 1000).toFixed(3)),
+        hickBits: Number(Math.log2(currentRound.options.length + 1).toFixed(3)),
+        endpointDxPx: Math.round(shotX - (rect.left + rect.width / 2)),
+        complexity
+      };
+      usabilityTrialsRef.current.push(trial);
+      if (usabilityTrialsRef.current.length > 200) usabilityTrialsRef.current.shift();
+      setUsabilityStats(summarizeUsability(usabilityTrialsRef.current));
+      logTimelineEvent('usability_trial', { ...trial });
+    }
     const newShot: LaserShot = {
       id: Date.now() + Math.random(),
       x: shotX,
@@ -4040,8 +4221,121 @@ export default function RTTutor() {
   // PROGRESSIVE ORTHOGRAPHIC FILTER RENDERER (Smooth Real-Time RGB Morphing)
   // ==========================================================================
 
+  // ==========================================================================
+  // MAATJE: child-level sidebar assistant (rule-based, offline) + orthogonal complexity axis + live usability laws
+  // ==========================================================================
+
+  const changeComplexity = (c: WordComplexity) => {
+    initAudio();
+    setComplexity(c);
+    setCurriculumMode('aapnootmies');
+    localStorage.setItem('tutor_curriculum', 'aapnootmies');
+    setLanguage('nl');
+    localStorage.setItem('tutor_lang', 'nl');
+    generateRound(level, streak, 'aapnootmies', c);
+  };
+
+  const maatjeLine = useMemo((): string => {
+    const nl = language === 'nl';
+    const t = currentRound?.target || '';
+    if (!t) return nl ? 'Hoi! Zullen we samen lezen?' : 'Hi! Shall we read together?';
+    const single = t.length === 1;
+    const groups = findDigraphGroups(t);
+    if (elapsedTime > baseThreshold + 4000 && groups.length > 0) {
+      const g = groups[0].text;
+      return nl
+        ? `Zie je het streepje? '${g}' zijn twee letters, maar je zegt één klank.`
+        : `See the little line? '${g}' is two letters, but one sound.`;
+    }
+    if (elapsedTime > baseThreshold) {
+      return nl ? 'Neem rustig je tijd. Kijk goed naar het plaatje.' : 'Take your time. Look carefully at the picture.';
+    }
+    if (streak >= 3) {
+      return nl ? `Wat knap! ${streak} keer goed achter elkaar.` : `Well done! ${streak} right in a row.`;
+    }
+    if (single) {
+      return nl ? `Zoek de letter '${t}'. Zeg hem zacht mee.` : `Find the letter '${t}'. Say it softly.`;
+    }
+    return nl ? `Zoek het woordje '${t}'.` : `Find the little word '${t}'.`;
+  }, [language, currentRound, elapsedTime, baseThreshold, streak]);
+
+  useEffect(() => {
+    setMaatjeHistory(prev => (prev[prev.length - 1] === maatjeLine ? prev : [...prev, maatjeLine].slice(-4)));
+  }, [maatjeLine]);
+
+  const renderMaatje = () => {
+    const nl = language === 'nl';
+    const stages: { key: WordComplexity; label: string; sub: string }[] = [
+      { key: 'simple', label: nl ? '1 · Eenvoudig' : '1 · Simple', sub: nl ? 'zonder dubbelklank' : 'no double sounds' },
+      { key: 'double', label: nl ? '2 · Lange klanken' : '2 · Long sounds', sub: 'aa · ee · oo · uu' },
+      { key: 'all', label: nl ? '3 · Alles' : '3 · All', sub: 'oe · ie · eu · ui …' }
+    ];
+    const u = usabilityStats;
+    const hickNow = currentRound ? Math.log2(currentRound.options.length + 1) : 0;
+    return (
+      <div className="space-y-2.5 text-slate-100">
+        <button
+          onClick={() => {
+            initAudio();
+            speakText(maatjeLine, { cancelFirst: true, bypassSilence: true });
+          }}
+          className="w-full text-left rounded-2xl rounded-bl-sm bg-purple-900/70 border border-purple-400/50 px-3 py-2 text-sm font-semibold leading-snug active:scale-[0.98]"
+        >
+          {maatjeLine} <span className="opacity-60">🔊</span>
+        </button>
+        {maatjeHistory.slice(0, -1).slice(-2).reverse().map((h, i) => (
+          <div key={`${h}-${i}`} className="text-[11px] text-slate-400 px-2" style={{ opacity: 0.7 - i * 0.25 }}>{h}</div>
+        ))}
+
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-purple-300 mb-1">
+            {nl ? 'Wat lezen we? (as A)' : 'What do we read? (axis A)'}
+          </div>
+          <div className="grid grid-cols-1 gap-1">
+            {stages.map(s => {
+              const active = curriculumMode === 'aapnootmies' && complexity === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => changeComplexity(s.key)}
+                  className={`flex items-center justify-between rounded-xl px-2.5 py-1.5 text-xs border ${active ? 'bg-purple-600 border-purple-200 text-white' : 'bg-slate-800/80 border-slate-700 text-slate-300'}`}
+                >
+                  <span className="font-bold">{s.label}</span>
+                  <span className="opacity-80">{s.sub} · {getAnmPool(s.key).length}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1 leading-snug">
+            {nl
+              ? 'Hulp (as B: 💬 uitleg) en taal staan los hiervan. Een dun streepje onder twee letters = één klank.'
+              : 'Support (axis B: 💬 guidance) and language are independent of this. A thin line under two letters = one sound.'}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-2 font-mono text-[10px] leading-relaxed text-emerald-300">
+          <div className="text-amber-300 font-bold mb-0.5">📈 {nl ? 'Live meting' : 'Live analytics'}</div>
+          <div>Hick: {hickNow.toFixed(2)} bit ({currentRound?.options.length ?? 0} {nl ? 'keuzes' : 'choices'})</div>
+          <div>{nl ? 'Pogingen' : 'Trials'}: {u.trials} · {nl ? 'goed' : 'hit'} {(u.hitRate * 100).toFixed(0)}%</div>
+          <div>Fitts ID̄: {u.meanId.toFixed(2)} bit · TP: {u.meanThroughput.toFixed(2)} bit/s</div>
+          <div>{nl ? 'Tijd' : 'Time'}: {u.meanMtMs} ms · We: {u.effectiveWidthPx === null ? '—' : `${u.effectiveWidthPx}px`}</div>
+          <div>MT = {u.fittsA === null ? '—' : u.fittsA} + {u.fittsB === null ? '—' : u.fittsB}·ID</div>
+        </div>
+      </div>
+    );
+  };
+
   const renderWordWithSmartColors = (word: string, targetWord?: string) => {
-    if (!targetWord) return word;
+    // Thin line under every double sound (oe, ie, eu, ui, ei, ij, aa, ee, oo, uu, sch, ng) - as in current kindergarten practice
+    const dMask = word.length > 1 ? digraphMask(word) : [];
+    if (!targetWord) {
+      return word.split('').map((char, idx) => (
+        <span key={`${char}-${idx}`} className="relative inline-block">
+          {char}
+          {dMask[idx] && <span className="absolute left-0 right-0 bottom-0 h-[2px] rounded-full bg-purple-300/80 pointer-events-none" />}
+        </span>
+      ));
+    }
 
     return word.split('').map((char, idx) => {
       const prefixMatches = word.substring(0, idx) === targetWord.substring(0, idx);
@@ -4059,6 +4353,9 @@ export default function RTTutor() {
       return (
         <span key={`${char}-${idx}`} className="relative inline-block">
           <span className="text-slate-100">{char}</span>
+          {dMask[idx] && (
+            <span className="absolute left-0 right-0 bottom-0 h-[2px] rounded-full bg-purple-300/80 pointer-events-none" />
+          )}
           {prefixMatches && (
             <span
               className="absolute left-0 top-0 pointer-events-none"
@@ -4617,6 +4914,26 @@ export default function RTTutor() {
       {/* ==================================================================== */}
       {/* MOBILE BOTTOM SHEET: essentials always visible, swipe up for more    */}
       {/* ==================================================================== */}
+      {/* MAATJE sidebar assistant (tablet/desktop): collapsible, never covers the grid unless you open it */}
+      <div className="hidden sm:block fixed left-3 bottom-4 z-30">
+        {maatjeOpen ? (
+          <div className="w-64 max-h-[78vh] overflow-y-auto rounded-2xl border-2 border-purple-500/60 bg-slate-950/92 backdrop-blur p-3 shadow-[0_0_30px_rgba(126,34,206,0.35)]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-black text-purple-200">🤖 Maatje</span>
+              <button onClick={() => setMaatjeOpen(false)} className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-xs">—</button>
+            </div>
+            {renderMaatje()}
+          </div>
+        ) : (
+          <button
+            onClick={() => setMaatjeOpen(true)}
+            className="px-3 py-2 rounded-2xl bg-purple-900/80 border-2 border-purple-400/70 text-purple-100 text-sm font-bold shadow-lg hover:bg-purple-800"
+          >
+            🤖 Maatje
+          </button>
+        )}
+      </div>
+
       <div className="h-20 sm:hidden shrink-0" />
       <MobileBottomSheet
         hint={language === 'nl' ? 'veeg omhoog voor meer' : 'swipe up for more'}
@@ -4658,6 +4975,12 @@ export default function RTTutor() {
           </>
         }
       >
+        {/* GROUP 0: Maatje (child-level helper + word complexity axis + live analytics) */}
+        <section className="rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2">🤖 Maatje</h4>
+          {renderMaatje()}
+        </section>
+
         {/* GROUP 1: Learning */}
         <section className="rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3">
           <h4 className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2">
