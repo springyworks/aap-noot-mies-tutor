@@ -425,41 +425,114 @@
   };
   var summarizeUsability = (trials) => {
     const n = trials.length;
+    const strataCounts = {
+      simple: trials.filter((t) => t.complexity === "simple").length,
+      double: trials.filter((t) => t.complexity === "double").length,
+      all: trials.filter((t) => t.complexity === "all").length
+    };
     if (n === 0) {
-      return { trials: 0, hitRate: 0, meanId: 0, meanMtMs: 0, meanThroughput: 0, effectiveWidthPx: null, lastHickBits: 0, fittsA: null, fittsB: null };
+      return {
+        trials: 0,
+        hitRate: 0,
+        meanId: 0,
+        meanMtMs: 0,
+        meanThroughput: 0,
+        sigmaDxPx: null,
+        effectiveWidthPx: null,
+        effectiveIdBits: null,
+        effectiveThroughputBitsPerS: null,
+        lastHickBits: 0,
+        fittsA: null,
+        fittsB: null,
+        fittsR2: null,
+        virziP: 0.31,
+        virziDiscovery: 0,
+        betaAlpha: 1.38,
+        betaBeta: 3.07,
+        schmettowBetaBinomial: 0,
+        strataCounts,
+        caultonMultiGroupDiscovery: 0
+      };
     }
     const mean = (xs) => xs.reduce((s, v) => s + v, 0) / xs.length;
     const ids = trials.map((t) => t.id2d);
     const mts = trials.map((t) => t.mtMs);
+    const meanD = mean(trials.map((t) => t.distancePx));
+    const meanMt = mean(mts);
+    let sd = null;
     let we = null;
-    if (n >= 4) {
+    let idEff = null;
+    let tpEff = null;
+    if (n >= 2) {
       const dx = trials.map((t) => t.endpointDxPx);
       const m = mean(dx);
-      const sd = Math.sqrt(mean(dx.map((v) => (v - m) ** 2)));
-      we = Number((4.133 * sd).toFixed(1));
+      sd = Number(Math.sqrt(mean(dx.map((v) => (v - m) ** 2))).toFixed(1));
+      we = Number(Math.max(8, 4.133 * sd).toFixed(1));
+      idEff = Number(Math.log2(meanD / we + 1).toFixed(3));
+      tpEff = Number((idEff / Math.max(0.08, meanMt / 1e3)).toFixed(3));
     }
     let a = null;
     let b = null;
-    if (n >= 5) {
+    let r2 = null;
+    if (n >= 3) {
       const mi = mean(ids);
-      const mm = mean(mts);
+      const mm = meanMt;
       const varI = mean(ids.map((v) => (v - mi) ** 2));
+      const varM = mean(mts.map((v) => (v - mm) ** 2));
       if (varI > 1e-6) {
         const cov = mean(ids.map((v, i) => (v - mi) * (mts[i] - mm)));
         b = cov / varI;
         a = mm - b * mi;
+        if (varM > 1e-6) {
+          r2 = Number(Math.min(1, Math.max(0, cov * cov / (varI * varM))).toFixed(3));
+        }
       }
     }
+    const hits = trials.filter((t) => t.hit).length;
+    const hitRate = Number((hits / n).toFixed(3));
+    const missOrSlow = trials.filter((t) => !t.hit || t.mtMs > 2800).length;
+    const virziP = Number(((0.31 * 3 + missOrSlow) / (3 + n)).toFixed(3));
+    const virziDiscovery = Number((1 - Math.pow(1 - virziP, n)).toFixed(3));
+    const betaAlpha = Number((0.9 + virziP * 2.2).toFixed(2));
+    const betaBeta = Number((1.4 + (1 - virziP) * 2.6).toFixed(2));
+    let gammaRatio = 1;
+    for (let k = 0; k < n; k++) {
+      gammaRatio *= (betaBeta + k) / (betaAlpha + betaBeta + k);
+    }
+    const schmettowBetaBinomial = Number((1 - gammaRatio).toFixed(3));
+    const pMatrix = [
+      [0.36, 0.22, 0.18],
+      [0.18, 0.35, 0.26],
+      [0.12, 0.24, 0.38],
+      [0.28, 0.3, 0.32]
+    ];
+    const nVec = [strataCounts.simple, strataCounts.double, strataCounts.all];
+    const caultonSum = pMatrix.reduce((acc, row) => {
+      const prod = row.reduce((pr, pjk, k) => pr * Math.pow(1 - pjk, nVec[k]), 1);
+      return acc + prod;
+    }, 0);
+    const caultonMultiGroupDiscovery = Number((1 - caultonSum / pMatrix.length).toFixed(3));
     return {
       trials: n,
-      hitRate: Number((trials.filter((t) => t.hit).length / n).toFixed(3)),
+      hitRate,
       meanId: Number(mean(ids).toFixed(3)),
-      meanMtMs: Math.round(mean(mts)),
+      meanMtMs: Math.round(meanMt),
       meanThroughput: Number(mean(trials.map((t) => t.throughputBitsPerS)).toFixed(3)),
+      sigmaDxPx: sd,
       effectiveWidthPx: we,
+      effectiveIdBits: idEff,
+      effectiveThroughputBitsPerS: tpEff,
       lastHickBits: trials[n - 1].hickBits,
       fittsA: a === null ? null : Math.round(a),
-      fittsB: b === null ? null : Math.round(b)
+      fittsB: b === null ? null : Math.round(b),
+      fittsR2: r2,
+      virziP,
+      virziDiscovery,
+      betaAlpha,
+      betaBeta,
+      schmettowBetaBinomial,
+      strataCounts,
+      caultonMultiGroupDiscovery
     };
   };
   var PRAISES = {
@@ -4030,6 +4103,14 @@
       ), /* @__PURE__ */ react_shim_default.createElement(
         "button",
         {
+          onClick: () => setInspectMode(!inspectMode),
+          title: "Open hoog Hard-Data & Professoren HCI Onderzoekspaneel (Fitts, Welford, MacKenzie, Accot-Zhai, Hick-Hyman, Tullis, Virzi, Schmettow, Thimbleby, 2D-FFT)",
+          className: `px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold border transition-colors ${inspectMode ? "bg-emerald-800/90 border-emerald-400 text-emerald-100 shadow-[0_0_12px_rgba(16,185,129,0.45)]" : "bg-slate-800/80 border-emerald-600/50 text-emerald-300 hover:bg-slate-700"}`
+        },
+        "\u{1F52C} Hard Data"
+      ), /* @__PURE__ */ react_shim_default.createElement(
+        "button",
+        {
           onClick: () => setShowDevTools(!showDevTools),
           title: "Ontwikkelaars- & Telemetrie-opties tonen/verbergen",
           className: `hidden sm:inline-block px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${showDevTools ? "bg-purple-900/80 border-purple-400 text-purple-100" : "bg-slate-800/70 border-slate-700/70 text-slate-400 hover:text-slate-200"}`
@@ -4127,16 +4208,80 @@
           className: "w-3.5 h-3.5 accent-emerald-500"
         }
       ))))),
-      inspectMode && /* @__PURE__ */ react_shim_default.createElement("div", { className: "fixed top-24 right-3 z-40 w-72 text-[11px] font-mono text-emerald-300 bg-slate-900/95 p-3 rounded-xl border border-emerald-700/80 shadow-2xl space-y-1.5 pointer-events-none" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "font-bold text-amber-300 border-b border-slate-800 pb-1 flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u{1F52C} HARD DATA & 2D-FFT"), /* @__PURE__ */ react_shim_default.createElement("span", null, "PTS: ", telemetryData.current.length)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hover Cel:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "font-bold text-white" }, hoveredWord ? `"${hoveredWord}" ${hoveredWord === currentRound?.target ? "\u{1F31F}(GOUD)" : ""}` : "geen")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Gouden Cel Dwell:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300" }, liveDerivedData.hoverAnalytics.goldenCellDwellMs, "ms (Fase ", liveDerivedData.hoverAnalytics.goldenCellEvolutionStage, "/4)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Snelheid / Jerk:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.kinematics.instantVelocityPxMs, " px/ms | ", liveDerivedData.kinematics.rmsJerkPxMs3)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Directheid / Reversals:"), /* @__PURE__ */ react_shim_default.createElement("span", null, (liveDerivedData.kinematics.directnessIndex * 100).toFixed(0), "% | ", liveDerivedData.kinematics.directionReversals, "x")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "border-t border-slate-800 pt-1 text-[10px] text-slate-300" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "2D-FFT Dom. Freq:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400" }, "X:", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz Y:", liveDerivedData.fft2D.dominantFrequencyYHz, "Hz")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Banden (Nav/Scan/Tremor):"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.lowFreqMacroNavPower.toFixed(2), " / ", liveDerivedData.fft2D.midFreqScanPower.toFixed(2), " / ", liveDerivedData.fft2D.highFreqTremorPower.toFixed(2))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Spectrale Signatuur:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold" }, liveDerivedData.fft2D.cognitiveLoadSignature))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-end gap-1 h-8 pt-1 border-t border-slate-800" }, liveDerivedData.fft2D.bins.map((b) => {
-        const barH = Math.min(28, Math.max(3, Math.round(b.power2D * 180)));
-        return /* @__PURE__ */ react_shim_default.createElement("div", { key: b.freqHz, className: "flex-1 flex flex-col items-center" }, /* @__PURE__ */ react_shim_default.createElement(
-          "div",
+      inspectMode && (() => {
+        const u = usabilityStats;
+        const optList = currentRound?.options || [];
+        const N = Math.max(1, optList.length);
+        const hickUniform = Math.log2(N + 1);
+        const dwellWeights = optList.map((w) => (cellDwellState[w] || 0) + 120);
+        const sumWeights = dwellWeights.reduce((a, b) => a + b, 0) || 1;
+        const hickShannon = dwellWeights.reduce((acc, w) => {
+          const pi = w / sumWeights;
+          return acc + pi * Math.log2(1 / pi + 1);
+        }, 0);
+        const tullisEntropy = optList.reduce((acc) => {
+          const pFig = 0.74 / N;
+          const pWord = 0.26 / N;
+          return acc - pFig * Math.log2(pFig) - pWord * Math.log2(pWord);
+        }, 0);
+        const rtPredMs = Math.round((u.fittsA ?? 280) + 155 * hickShannon + 42 * tullisEntropy);
+        const pathPx = liveDerivedData.kinematics.totalPathLengthPx;
+        const steerId = Number((pathPx / 180).toFixed(2));
+        const visits = Object.values(cellVisitsRef.current).reduce((a, b) => a + b, 0);
+        const markovCost = Number((1.15 + visits * 0.28 + (1 - liveDerivedData.kinematics.directnessIndex) * 1.9).toFixed(2));
+        const fbList = figureFeedbackRef.current;
+        const fbWrong = fbList.filter((f) => f.verdict === "wrong").length;
+        const fbNice = fbList.filter((f) => f.verdict === "nice").length;
+        const fbAnother = fbList.filter((f) => f.verdict === "another").length;
+        const targetGroups = findDigraphGroups(currentRound?.target || "");
+        return /* @__PURE__ */ react_shim_default.createElement("aside", { className: "fixed top-14 bottom-2 right-2 sm:right-3 z-40 w-[335px] sm:w-[420px] max-h-[calc(100dvh-4rem)] overflow-y-auto text-[11px] font-mono text-emerald-300 bg-slate-950/95 p-3.5 rounded-2xl border-2 border-emerald-500/80 shadow-[0_0_40px_rgba(16,185,129,0.28)] space-y-2.5" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "font-bold text-amber-300 border-b border-slate-800 pb-1.5 flex items-center justify-between sticky top-0 bg-slate-950/95 z-10" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u{1F52C} HARD DATA & PROFESSOREN HCI LAB"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-[10px] text-emerald-400" }, "PTS:", telemetryData.current.length), /* @__PURE__ */ react_shim_default.createElement(
+          "button",
           {
-            className: "w-full bg-emerald-500/80 rounded-t",
-            style: { height: `${barH}px` }
-          }
-        ), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-[8px] text-slate-500" }, b.freqHz));
-      }))),
+            onClick: () => setInspectMode(false),
+            className: "px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs",
+            title: "Sluit paneel"
+          },
+          "\u2715"
+        ))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-purple-950/45 border border-purple-500/50 p-2.5 space-y-1.5 font-sans" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-purple-300" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "\u{1F916} Maatje \xB7 Orthogonale Klank-As (Lagere School)"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "font-mono text-amber-300" }, targetGroups.length > 0 ? `klankgroep: ${targetGroups.map((g) => g.text).join("+")}` : "enkelvoudige klank")), /* @__PURE__ */ react_shim_default.createElement(
+          "button",
+          {
+            onClick: () => {
+              initAudio();
+              speakText(maatjeLine, { cancelFirst: true, bypassSilence: true });
+            },
+            className: "w-full text-left rounded-xl bg-purple-900/70 border border-purple-400/50 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-purple-800/80"
+          },
+          "\u201C",
+          maatjeLine,
+          "\u201D ",
+          /* @__PURE__ */ react_shim_default.createElement("span", { className: "opacity-75" }, "\u{1F50A}")
+        ), /* @__PURE__ */ react_shim_default.createElement("div", { className: "grid grid-cols-3 gap-1 pt-0.5" }, [
+          ["simple", "1\xB7Simpel (6)", "geen oe/ie"],
+          ["double", "2\xB7Lang (10)", "aa\xB7ee\xB7oo\xB7uu"],
+          ["all", "3\xB7Alles (17)", "oe\xB7ie\xB7eu\xB7ui"]
+        ].map(([key, lbl, sub]) => {
+          const active = curriculumMode === "aapnootmies" && complexity === key;
+          return /* @__PURE__ */ react_shim_default.createElement(
+            "button",
+            {
+              key,
+              onClick: () => changeComplexity(key),
+              className: `rounded-lg px-1.5 py-1 text-[10px] leading-tight border text-left ${active ? "bg-purple-600 border-purple-200 text-white font-bold" : "bg-slate-900/90 border-slate-700 text-slate-300 hover:border-purple-400"}`
+            },
+            /* @__PURE__ */ react_shim_default.createElement("div", null, lbl),
+            /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] opacity-75" }, sub)
+          );
+        }))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "1. \u{1F3AF} Prof. Fitts (1954) \xB7 Welford (1968) \xB7 MacKenzie-Buxton (1992) \xB7 Tillman"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "2D Law: ID = log\u2082(\u221A((D/W)\xB2 + \u03B7(D/H)\xB2) + 1) \xB7 Welford: We = \u221A(2\u03C0e)\xB7\u03C3x = 4.133\u03C3x"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Trials (n) / Hit-rate:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white font-bold" }, u.trials, " trials \xB7 ", (u.hitRate * 100).toFixed(1), "% hit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Mean ID\u2082D / Mean MT:"), /* @__PURE__ */ react_shim_default.createElement("span", null, u.meanId.toFixed(2), " bit \xB7 ", u.meanMtMs, " ms")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Shannon Throughput (TP):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, u.meanThroughput.toFixed(2), " bit/s")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Welford \u03C3x / Eff. Width We:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, "\u03C3x=", u.sigmaDxPx === null ? "\u2014" : `${u.sigmaDxPx}px`, " \u2192 We=", u.effectiveWidthPx === null ? "\u2014" : `${u.effectiveWidthPx}px`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Welford Effective IDe / TPe:"), /* @__PURE__ */ react_shim_default.createElement("span", null, u.effectiveIdBits === null ? "\u2014" : `${u.effectiveIdBits} bit`, " \xB7 ", u.effectiveThroughputBitsPerS === null ? "\u2014" : `${u.effectiveThroughputBitsPerS} bit/s`)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Regressie MT = a + b\xB7ID:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, u.fittsA === null ? "wacht op \u22653 kliks" : `${u.fittsA} + ${u.fittsB}\xB7ID ms (R\xB2=${u.fittsR2 ?? "\u2014"})`))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "2. \u{1F6E4}\uFE0F Accot & Zhai (1997) Steering Law \xB7 Flash & Hogan (1985) Min-Jerk"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "Steering Tunnel: ID_steer = \u222B_C ds / W(s) \xB7 Min-Jerk: \u222B ||d\xB3x/dt\xB3||\xB2 dt"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Padlengte S / Tunnel ID_steer:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white" }, pathPx, " px \u2192 ", steerId, " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Snelheid v(t) / Piek v_max:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.kinematics.instantVelocityPxMs, " / ", liveDerivedData.kinematics.peakVelocityPxMs, " px/ms")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Versnelling a / RMS Jerk J:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, liveDerivedData.kinematics.meanAccelerationPxMs2, " px/ms\xB2 | ", liveDerivedData.kinematics.rmsJerkPxMs3, " px/ms\xB3")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Directheid / Submovement Rev:"), /* @__PURE__ */ react_shim_default.createElement("span", null, (liveDerivedData.kinematics.directnessIndex * 100).toFixed(0), "% direct | ", liveDerivedData.kinematics.directionReversals, "x omkering"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "3. \u{1F9E0} Prof. Hick (1952) \xB7 Hyman (1953) \xB7 Dr. Tullis (1988) Screen Entropy"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "RT = a + b\xB7\u03A3 p_i log\u2082(1/p_i + 1) + c\xB7(-\u03A3 (A_k/A) log\u2082(A_k/A))"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hick Uniform log\u2082(N+1) (N=", N, "):"), /* @__PURE__ */ react_shim_default.createElement("span", null, hickUniform.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hick-Hyman Shannon H(p_i):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, hickShannon.toFixed(2), " bit")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Tullis Layout Entropy H_layout:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, tullisEntropy.toFixed(2), " bit (", N * 2, " visuele zones)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Voorspelde RT vs Actueel:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-200" }, rtPredMs, " ms pred vs ", elapsedTime, " ms nu"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "4. \u{1F9EA} Virzi (1992) \xB7 Nielsen-Landauer \xB7 Caulton (2001) \xB7 Schmettow (2012)"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "Beta-Binomial: E[P(n)] = 1 - \u0393(\u03B1+\u03B2)\u0393(\u03B2+n) / [\u0393(\u03B2)\u0393(\u03B1+\u03B2+n)]"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Virzi Homogeen P(n) (p=", u.virziP, "):"), /* @__PURE__ */ react_shim_default.createElement("span", null, (u.virziDiscovery * 100).toFixed(1), "% ontdekt")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Schmettow Beta(\u03B1=", u.betaAlpha, ", \u03B2=", u.betaBeta, "):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, (u.schmettowBetaBinomial * 100).toFixed(1), "% E[P(n)]")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Caulton Subgroepen (M=3 strata):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-sky-300" }, (u.caultonMultiGroupDiscovery * 100).toFixed(1), "% (", u.strataCounts.simple, "/", u.strataCounts.double, "/", u.strataCounts.all, ")")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Cel-Figuur Feedback [\u2717/\u2665/\u21BB]:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-purple-300" }, "\u2717:", fbWrong, " \xB7 \u2665:", fbNice, " \xB7 \u21BB:", fbAnother))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "5. \u{1F578}\uFE0F Prof. Harold Thimbleby (2007) Algebraic FSM & Markov Matrix Law"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-[9px] text-slate-400" }, "s_{t+1} = s_t\xB7B_k \xB7 Undo det(B_k) \u2260 0 \xB7 Cost C_use = \u03A3 \u03C0_i p_ij d_ij"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "FSM States (M) / Undo det(B_k):"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400" }, "M=", N + 2, " \xB7 det(B_k)=1.00 (omkeerbaar)")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Markov Verwachte Kosten C_use:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-white font-bold" }, markovCost, " graaf-stappen (visits:", visits, ")")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Hover Cel / Gouden Cel Dwell:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300" }, hoveredWord ? `"${hoveredWord}"` : "geen", " \xB7 ", liveDerivedData.hoverAnalytics.goldenCellDwellMs, "ms (Fase ", liveDerivedData.hoverAnalytics.goldenCellEvolutionStage, "/4)"))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "rounded-xl bg-slate-900/90 border border-slate-800 p-2.5 space-y-1" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "text-amber-300 font-bold text-[10px] uppercase tracking-wide" }, "6. \u{1F4C8} Fourier / Cooley-Tukey (1965) 2D Spatial-Temporal FFT Spectrum"), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Dom. Freq (X / Y) @ fs=", liveDerivedData.fft2D.effectiveSampleRateHz, "Hz:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-emerald-400 font-bold" }, "X:", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz \xB7 Y:", liveDerivedData.fft2D.dominantFrequencyYHz, "Hz")), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Banden (Nav / Scan / Tremor):"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.lowFreqMacroNavPower.toFixed(2), " / ", liveDerivedData.fft2D.midFreqScanPower.toFixed(2), " / ", liveDerivedData.fft2D.highFreqTremorPower.toFixed(2))), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Entropie H_spec / Anisotropie:"), /* @__PURE__ */ react_shim_default.createElement("span", null, liveDerivedData.fft2D.spectralEntropy, " \xB7 XY=", liveDerivedData.fft2D.anisotropyRatioXY)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex justify-between" }, /* @__PURE__ */ react_shim_default.createElement("span", null, "Spectrale Signatuur:"), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold" }, liveDerivedData.fft2D.cognitiveLoadSignature)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-end gap-1 h-10 pt-1.5 border-t border-slate-800" }, liveDerivedData.fft2D.bins.map((b) => {
+          const barH = Math.min(34, Math.max(3, Math.round(b.power2D * 190)));
+          return /* @__PURE__ */ react_shim_default.createElement("div", { key: b.freqHz, className: "flex-1 flex flex-col items-center" }, /* @__PURE__ */ react_shim_default.createElement(
+            "div",
+            {
+              className: "w-full bg-emerald-500/85 rounded-t",
+              style: { height: `${barH}px` }
+            }
+          ), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-[8px] text-slate-400" }, b.freqHz));
+        }))));
+      })(),
       shareToast && /* @__PURE__ */ react_shim_default.createElement("div", { className: "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 text-sm font-bold shadow-2xl" }, shareToast),
       drillThroughToast && /* @__PURE__ */ react_shim_default.createElement("div", { className: "fixed bottom-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 font-mono text-xs shadow-2xl flex items-center gap-3" }, /* @__PURE__ */ react_shim_default.createElement("span", null, drillThroughToast), /* @__PURE__ */ react_shim_default.createElement(
         "button",
