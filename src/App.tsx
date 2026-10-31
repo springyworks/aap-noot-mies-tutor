@@ -264,47 +264,47 @@ const AAP_NOOT_MIES_WORDS: string[] = [
 
 const PRAISES: Record<LanguageCode, string[]> = {
   en: [
-    "I am so proud of you, what a beautiful choice!",
-    "Ah, marvelous work! That launches a bright rocket in your brain!",
-    "You found it, I love how you discovered that!",
-    "Spectacular reading, my friend. Your brain model is getting stronger!",
-    "Wow, you got it right on the nose!",
-    "That is exactly right, brilliant!",
-    "You are getting so good at this!",
-    "Wonderful, just wonderful!",
-    "Yes! You spotted it perfectly.",
-    "Fantastic focus, well done!"
+    "Well done sweetheart, you found it right away!",
+    "Yes, beautiful reading! Look how nicely that fits.",
+    "You spotted that all by yourself, lovely!",
+    "Wonderful darling, you are reading so smoothly!",
+    "Yes, that is the right word, super!",
+    "Oh how nice, you saw that right away!",
+    "Beautifully done, let us look at the next one together.",
+    "Yes, spot on! You have a great eye for the letters.",
+    "Lovely work, you found the golden picture!",
+    "So calm and clear, well done!"
   ],
   nl: [
-    "Geweldig gedaan, wat knap van je!",
-    "Heel goed! Dat lanceert weer een prachtige raket in je brein!",
-    "Ja hoor, je hebt het helemaal zelf gevonden!",
-    "Prachtig, je brein bouwt hier een supersterk model van!",
-    "Wauw, dat was precies de goede!",
-    "Helemaal perfect, fantastisch!",
-    "Je wordt hier echt super goed in!",
-    "Geweldig, echt prachtig gedaan!",
-    "Ja! Je hebt hem perfect gespot.",
-    "Wat een goede concentratie, super!"
+    "Goed zo lieverd, dat heb je mooi gezien!",
+    "Ja hoor, helemaal goed gelezen!",
+    "Wat knap dat je die meteen zag, schat!",
+    "Prachtig gelezen hoor, we gaan lekker verder!",
+    "Ja, dat is hem! Heel fijn gedaan.",
+    "Oh wat mooi, je zag het meteen!",
+    "Keurig hoor, kijk eens hoe rustig je dat doet.",
+    "Ja, precies de goede! Wat doe je dat fijn.",
+    "Heel mooi gevonden lieverd!",
+    "Super hoor, laten we samen naar de volgende kijken."
   ]
 };
 
 const IDLE_PROMPTS: Record<LanguageCode, string[]> = {
   en: [
-    "Are you still there? Take your time, the little moving figures and I are right here.",
-    "Hello there! We can explore the letters and drawings together whenever you are ready.",
-    "No rush at all, my friend. Let's see what the shapes tell us."
+    "Take your time darling, we can look at the pictures together whenever you like.",
+    "No hurry at all sweetheart, just look calmly at the letters.",
+    "I am right here with you, take all the time you need."
   ],
   nl: [
-    "Ben je daar nog? Neem rustig de tijd hoor, de bewegende figuurtjes en ik wachten hier bij je.",
-    "Hallo daar! We kunnen samen naar de letters en lijntekeningetjes kijken zodra je er klaar voor bent.",
-    "Geen enkele haast hoor. Laten we rustig kijken wat de vormen ons vertellen."
+    "Neem rustig je tijd hoor lieverd, we kijken gewoon samen naar de plaatjes.",
+    "Geen haast hoor schat, kijk maar rustig welke letters je herkent.",
+    "Ik ben hier bij je hoor, doe maar lekker op je gemak."
   ]
 };
 
 const SILENCE_ANNOUNCEMENTS: Record<LanguageCode, string> = {
-  nl: "Ik merk dat er even geen activiteit is. Ik zet mijn stem nu op stil en wacht rustig in de luisterstand tot je weer beweegt.",
-  en: "I notice there is no activity right now. I will set my voice to silent and wait quietly in standby until you move again."
+  nl: "Ik ben even stil en luister rustig met je mee tot je weer verder wilt.",
+  en: "I will stay quiet and listen calmly with you until you want to continue."
 };
 
 const BACH_MOTIFS: number[][] = [
@@ -349,24 +349,24 @@ const EMOTION_META: Record<TutorEmotion, {
   pitchMod: number;
   rateMod: number;
 }> = {
-  SERENE:          { idx: 1,  labelNL: '1. Sereen & Rustig',        labelEN: '1. Serene & Calm',         color: '#7eaba0', pitchMod: 1.00, rateMod: 0.78 },
-  CURIOUS:         { idx: 2,  labelNL: '2. Nieuwsgierig',           labelEN: '2. Curious Explorer',      color: '#d4b483', pitchMod: 1.05, rateMod: 0.80 },
-  CONTEMPLATIVE:   { idx: 3,  labelNL: '3. Peinzend',               labelEN: '3. Contemplative',         color: '#8a99b8', pitchMod: 0.96, rateMod: 0.76 },
-  ENCOURAGING:     { idx: 4,  labelNL: '4. Warm Aanmoedigend',      labelEN: '4. Encouraging',           color: '#c48d84', pitchMod: 1.04, rateMod: 0.78 },
-  PLAYFUL:         { idx: 5,  labelNL: '5. Speels & Kinetisch',     labelEN: '5. Playful & Kinetic',     color: '#9b8c9a', pitchMod: 1.08, rateMod: 0.82 },
-  DELIGHTED:       { idx: 6,  labelNL: '6. Verrukt & Blij',         labelEN: '6. Delighted',             color: '#82b89a', pitchMod: 1.10, rateMod: 0.82 },
-  WONDER:          { idx: 7,  labelNL: '7. Verwonderd',             labelEN: '7. Filled with Wonder',    color: '#e0c088', pitchMod: 1.07, rateMod: 0.77 },
-  ATTENTIVE:       { idx: 8,  labelNL: '8. Alert & Aandachtig',     labelEN: '8. Attentive Focus',       color: '#7ab8c4', pitchMod: 1.02, rateMod: 0.79 },
-  GENTLE_SURPRISE: { idx: 9,  labelNL: '9. Zachte Verrassing',      labelEN: '9. Gentle Surprise',       color: '#d8a48f', pitchMod: 1.09, rateMod: 0.80 },
-  WARM_PRIDE:      { idx: 10, labelNL: '10. Warme Trots',           labelEN: '10. Warm Pride',           color: '#d4a373', pitchMod: 1.03, rateMod: 0.78 },
-  PATIENT:         { idx: 11, labelNL: '11. Geduldig Wachtend',     labelEN: '11. Patiently Listening',  color: '#94a89a', pitchMod: 0.98, rateMod: 0.75 },
-  INSPIRED:        { idx: 12, labelNL: '12. Geïnspireerd',          labelEN: '12. Inspired',             color: '#b89cd4', pitchMod: 1.08, rateMod: 0.81 },
-  RADIANT:         { idx: 13, labelNL: '13. Stralend (Gouden Cel)', labelEN: '13. Radiant Golden Cell',  color: '#f3c663', pitchMod: 1.09, rateMod: 0.81 },
-  HARMONIOUS:      { idx: 14, labelNL: '14. Harmonisch',            labelEN: '14. Harmonious',           color: '#80b4a8', pitchMod: 1.01, rateMod: 0.78 },
-  MEDITATIVE:      { idx: 15, labelNL: '15. Meditatief',            labelEN: '15. Meditative',           color: '#7c90ad', pitchMod: 0.95, rateMod: 0.74 },
-  EAGER:           { idx: 16, labelNL: '16. Leergierig',            labelEN: '16. Eager to Discover',    color: '#d9b26f', pitchMod: 1.07, rateMod: 0.82 },
-  SOOTHING:        { idx: 17, labelNL: '17. Kalmerend',             labelEN: '17. Soothing & Safe',      color: '#88b3a4', pitchMod: 0.97, rateMod: 0.75 },
-  ROCKET_LAUNCH:   { idx: 18, labelNL: '18. Brein-Raket! 🚀',       labelEN: '18. Brain Rocket! 🚀',     color: '#f59e0b', pitchMod: 1.12, rateMod: 0.84 }
+  SERENE:          { idx: 1,  labelNL: '1. Sereen & Rustig',        labelEN: '1. Serene & Calm',         color: '#7eaba0', pitchMod: 1.04, rateMod: 0.98 },
+  CURIOUS:         { idx: 2,  labelNL: '2. Nieuwsgierig',           labelEN: '2. Curious Explorer',      color: '#d4b483', pitchMod: 1.07, rateMod: 1.00 },
+  CONTEMPLATIVE:   { idx: 3,  labelNL: '3. Peinzend',               labelEN: '3. Contemplative',         color: '#8a99b8', pitchMod: 1.02, rateMod: 0.96 },
+  ENCOURAGING:     { idx: 4,  labelNL: '4. Warm Aanmoedigend',      labelEN: '4. Encouraging',           color: '#c48d84', pitchMod: 1.06, rateMod: 1.00 },
+  PLAYFUL:         { idx: 5,  labelNL: '5. Speels & Kinetisch',     labelEN: '5. Playful & Kinetic',     color: '#9b8c9a', pitchMod: 1.09, rateMod: 1.03 },
+  DELIGHTED:       { idx: 6,  labelNL: '6. Verrukt & Blij',         labelEN: '6. Delighted',             color: '#82b89a', pitchMod: 1.10, rateMod: 1.04 },
+  WONDER:          { idx: 7,  labelNL: '7. Verwonderd',             labelEN: '7. Filled with Wonder',    color: '#e0c088', pitchMod: 1.07, rateMod: 0.99 },
+  ATTENTIVE:       { idx: 8,  labelNL: '8. Alert & Aandachtig',     labelEN: '8. Attentive Focus',       color: '#7ab8c4', pitchMod: 1.05, rateMod: 1.00 },
+  GENTLE_SURPRISE: { idx: 9,  labelNL: '9. Zachte Verrassing',      labelEN: '9. Gentle Surprise',       color: '#d8a48f', pitchMod: 1.08, rateMod: 1.01 },
+  WARM_PRIDE:      { idx: 10, labelNL: '10. Warme Trots',           labelEN: '10. Warm Pride',           color: '#d4a373', pitchMod: 1.06, rateMod: 1.00 },
+  PATIENT:         { idx: 11, labelNL: '11. Geduldig Wachtend',     labelEN: '11. Patiently Listening',  color: '#94a89a', pitchMod: 1.03, rateMod: 0.96 },
+  INSPIRED:        { idx: 12, labelNL: '12. Geïnspireerd',          labelEN: '12. Inspired',             color: '#b89cd4', pitchMod: 1.08, rateMod: 1.02 },
+  RADIANT:         { idx: 13, labelNL: '13. Stralend (Gouden Cel)', labelEN: '13. Radiant Golden Cell',  color: '#f3c663', pitchMod: 1.09, rateMod: 1.03 },
+  HARMONIOUS:      { idx: 14, labelNL: '14. Harmonisch',            labelEN: '14. Harmonious',           color: '#80b4a8', pitchMod: 1.05, rateMod: 0.99 },
+  MEDITATIVE:      { idx: 15, labelNL: '15. Meditatief',            labelEN: '15. Meditative',           color: '#7c90ad', pitchMod: 1.02, rateMod: 0.95 },
+  EAGER:           { idx: 16, labelNL: '16. Leergierig',            labelEN: '16. Eager to Discover',    color: '#d9b26f', pitchMod: 1.08, rateMod: 1.03 },
+  SOOTHING:        { idx: 17, labelNL: '17. Kalmerend',             labelEN: '17. Soothing & Safe',      color: '#88b3a4', pitchMod: 1.04, rateMod: 0.96 },
+  ROCKET_LAUNCH:   { idx: 18, labelNL: '18. Gouden Bloei ✨',       labelEN: '18. Golden Bloom ✨',      color: '#f59e0b', pitchMod: 1.09, rateMod: 1.03 }
 };
 
 // ============================================================================
@@ -2176,11 +2176,19 @@ export default function RTTutor() {
     if (!list || list.length === 0) return null;
 
     const prefixes = targetLang === 'nl' ? ['nl-nl', 'nl-be', 'nl_nl', 'nl'] : ['en-us', 'en-gb', 'en_us', 'en'];
-    for (const pref of prefixes) {
-      const match = list.find(v => v.lang && v.lang.toLowerCase().startsWith(pref));
-      if (match) return match;
-    }
-    return null;
+    const candidates = list.filter(v => v.lang && prefixes.some(p => v.lang.toLowerCase().startsWith(p)));
+    if (candidates.length === 0) return null;
+
+    // Prefer natural, sweet female / motherly voices (Fenna, Colette, Laura, Lotte, Claire, Google Nederlands, Natural/Neural)
+    const motherlyKeywords = [
+      'fenna', 'colette', 'laura', 'lotte', 'claire', 'ellen', 'hanna', 'saskia',
+      'samantha', 'victoria', 'karen', 'moira', 'tessa', 'ava', 'jenny', 'aria',
+      'female', 'vrouw', 'natural', 'neural', 'google'
+    ];
+    const sweetMatch = candidates.find(v =>
+      motherlyKeywords.some(kw => v.name.toLowerCase().includes(kw))
+    );
+    return sweetMatch || candidates[0];
   }, []);
 
   useEffect(() => {
@@ -3347,10 +3355,12 @@ export default function RTTutor() {
       const u = new SpeechSynthesisUtterance(txt);
       const voices = window.speechSynthesis.getVoices();
       const pref = lang === 'nl' ? 'nl' : 'en';
-      const v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith(pref));
-      if (v) u.voice = v;
+      const candidates = voices.filter(x => x.lang && x.lang.toLowerCase().startsWith(pref));
+      const sweet = candidates.find(x => /fenna|colette|laura|lotte|claire|female|vrouw|natural|google/i.test(x.name));
+      if (sweet || candidates[0]) u.voice = sweet || candidates[0];
       u.lang = lang === 'nl' ? 'nl-NL' : 'en-US';
-      u.rate = 0.78;
+      u.rate = 1.00;
+      u.pitch = 1.06;
       window.speechSynthesis.speak(u);
     }
 
@@ -3562,17 +3572,7 @@ export default function RTTutor() {
     if (isHit) {
       const newStreak = streak + 1;
 
-      // Launch the "Brain Rocket" Mental Model animation!
-      setTutorEmotion(newStreak >= 2 ? 'ROCKET_LAUNCH' : 'DELIGHTED');
-      setRocketFlight({
-        active: true,
-        word,
-        streakCount: newStreak,
-        startedAt: Date.now()
-      });
-      setTimeout(() => {
-        setRocketFlight(prev => ({ ...prev, active: false }));
-      }, 2800);
+      setTutorEmotion(newStreak >= 2 ? 'WARM_PRIDE' : 'DELIGHTED');
 
       const now = Date.now();
       if (now - lastOpaKoTime.current > 3600000) {
@@ -3582,11 +3582,11 @@ export default function RTTutor() {
         }, 1800);
       } else if (introspectionLevel === 2) {
         const msg = language === 'nl'
-          ? `Raak! Je lanceert een brein-raket voor '${word}' in ${(elapsedTime / 1000).toFixed(1)} seconden! Je brein slaat dit goede model op voor de lange termijn.`
-          : `Spot on! You launched a brain rocket for '${word}' in ${(elapsedTime / 1000).toFixed(1)} seconds! Your brain stores this model for the long term.`;
-        speakText(msg, { emotionOverride: 'ROCKET_LAUNCH', cancelFirst: true });
+          ? `Goed zo lieverd! Je herkende '${word}' in ${(elapsedTime / 1000).toFixed(1)} seconden.`
+          : `Well done darling! You spotted '${word}' in ${(elapsedTime / 1000).toFixed(1)} seconds.`;
+        speakText(msg, { emotionOverride: 'WARM_PRIDE', cancelFirst: true });
       } else {
-        speakVariedFromArray(PRAISES[language], 'praise', newStreak >= 2 ? 'ROCKET_LAUNCH' : 'DELIGHTED');
+        speakVariedFromArray(PRAISES[language], 'praise', newStreak >= 2 ? 'WARM_PRIDE' : 'DELIGHTED');
       }
 
       if (autoLevel && curriculumMode === 'standard' && newStreak >= 2) {
@@ -3894,67 +3894,17 @@ export default function RTTutor() {
         </div>
       )}
 
-      {/* ==================================================================== */}
-      {/* BRAIN ROCKET MENTAL-MODEL LAUNCH ANIMATION OVERLAY                   */}
-      {/* ==================================================================== */}
-      {rocketFlight.active && (
-        <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center overflow-hidden">
-          <div className="flex flex-col items-center animate-bounce">
-            <svg viewBox="0 0 120 140" className="w-24 h-28 sm:w-32 sm:h-36 drop-shadow-2xl">
-              {/* Rocket Flame */}
-              <path
-                d="M 48 100 Q 60 135 60 138 Q 60 135 72 100 Z"
-                fill="#f59e0b"
-                opacity="0.9"
-              />
-              <path
-                d="M 53 100 Q 60 124 67 100 Z"
-                fill="#fef08a"
-              />
-              {/* Rocket Fins */}
-              <path d="M 42 78 L 24 102 L 45 96 Z" fill="#c48d84" stroke="#fde68a" strokeWidth="1.5" />
-              <path d="M 78 78 L 96 102 L 75 96 Z" fill="#c48d84" stroke="#fde68a" strokeWidth="1.5" />
-              {/* Rocket Body */}
-              <path
-                d="M 60 14 C 82 38 82 76 76 100 L 44 100 C 38 76 38 38 60 14 Z"
-                fill="#1e293b"
-                stroke="#f3c663"
-                strokeWidth="3"
-              />
-              {/* Porthole Window with Word */}
-              <circle cx="60" cy="58" r="14" fill="#0f172a" stroke="#7eaba0" strokeWidth="2.5" />
-              <text x="60" y="62" textAnchor="middle" fill="#fef08a" fontSize="11" fontWeight="bold">
-                {rocketFlight.word}
-              </text>
-            </svg>
-            <div className="px-4 py-1.5 rounded-full bg-slate-900/90 border border-amber-400/60 text-amber-300 font-mono text-xs font-bold shadow-xl">
-              🚀 Brein-Model Opgeslagen: "{rocketFlight.word}" (Streak {rocketFlight.streakCount})
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2D Kinetic Laser / Starburst Reticle Overlay */}
+      {/* Subtle Soft Ring Ripple on Word Click (No Obtrusive Rocket/Laser Lines) */}
       <svg className="fixed inset-0 w-full h-full pointer-events-none z-30">
         {laserShots
-          .filter(s => Date.now() - s.createdAt < 700)
+          .filter(s => Date.now() - s.createdAt < 500)
           .map(shot => {
-            const age = (Date.now() - shot.createdAt) / 700;
-            const radius = 14 + age * 55;
+            const age = (Date.now() - shot.createdAt) / 500;
+            const radius = 12 + age * 36;
             const strokeColor = shot.isHit ? '#7eaba0' : '#d4b483';
             return (
-              <g key={shot.id} opacity={1 - age}>
-                <line
-                  x1={typeof window !== 'undefined' ? window.innerWidth / 2 : 200}
-                  y1={typeof window !== 'undefined' ? window.innerHeight - 20 : 600}
-                  x2={shot.x}
-                  y2={shot.y}
-                  stroke={strokeColor}
-                  strokeWidth={2.5 * (1 - age)}
-                  strokeDasharray="6 4"
-                />
-                <circle cx={shot.x} cy={shot.y} r={radius} fill="none" stroke={strokeColor} strokeWidth="2.5" />
-                <circle cx={shot.x} cy={shot.y} r={radius * 0.45} fill="none" stroke="#fff8e7" strokeWidth="1.5" />
+              <g key={shot.id} opacity={(1 - age) * 0.65}>
+                <circle cx={shot.x} cy={shot.y} r={radius} fill="none" stroke={strokeColor} strokeWidth="2" />
               </g>
             );
           })}
