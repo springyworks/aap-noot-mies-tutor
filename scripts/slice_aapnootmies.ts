@@ -34,6 +34,8 @@ export interface AapNootMiesFigureAsset {
   readonly index: number;
   readonly webpUrl: string;
   readonly webpDataUri: string;
+  readonly lampWebpUrl: string;
+  readonly lampWebpDataUri: string;
   readonly fileUrl: string;
   readonly jpgUrl: string;
   readonly dataUri: string;
@@ -78,6 +80,99 @@ const TS_OUT_FILE: string = path.join(WORKSPACE_ROOT, 'src', 'aapNootMiesAssets.
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  const num = parseInt(clean, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+/**
+ * Generates a dedicated 1960s Kitsch Motion-Lamp Rotary Color-Wheel WebP
+ * (`public/aapnootmies/lamp_<word>.webp`).
+ * Painted with wavy prismatic stained-glass pinwheel sectors, warm radial
+ * light beams, and rippled heat-wheel rings so that rotating this WebP behind
+ * the stationary figure WebP lights up the figure with authentic 1960s liveliness!
+ */
+function buildKitschLampWheelWebp(spec: FigureCropSpec, idx: number, lampWebpPath: string): Buffer {
+  const size = 180;
+  const rgbaBuf = Buffer.alloc(size * size * 4);
+
+  const c1 = hexToRgb(spec.lampPrimaryHex);
+  const c2 = hexToRgb(spec.lampSecondaryHex);
+  const c3 = hexToRgb(spec.lampWarmthHex);
+  // Complementary 1960s jewel accent
+  const c4: [number, number, number] = [
+    Math.min(255, Math.round((c1[1] + c2[2]) * 0.65)),
+    Math.min(255, Math.round((c2[0] + c3[1]) * 0.55)),
+    Math.min(255, Math.round((c1[0] + c3[2]) * 0.65))
+  ];
+
+  const petals = 5 + (idx % 4); // 5 to 8 wavy heat-wheel vanes per character
+  const twist = (idx % 2 === 0 ? 1 : -1) * (2.2 + (idx % 3) * 0.45);
+  const phaseOffset = idx * 1.17;
+
+  for (let y = 0; y < size; y++) {
+    const ny = (y - size * 0.5) / (size * 0.5);
+    for (let x = 0; x < size; x++) {
+      const nx = (x - size * 0.5) / (size * 0.5);
+      const r = Math.sqrt(nx * nx + ny * ny);
+      const theta = Math.atan2(ny, nx);
+
+      // Wavy 1960s Econolite rotary heat-cylinder vane pattern
+      const swirlAngle = theta * petals + r * twist + Math.sin(r * 9.0 + phaseOffset) * 0.85;
+      const vaneA = 0.5 + 0.5 * Math.sin(swirlAngle);
+      const vaneB = 0.5 + 0.5 * Math.cos(swirlAngle * 0.5 - r * 4.5 + phaseOffset);
+      const radialRay = 0.5 + 0.5 * Math.sin(theta * (petals * 2) - r * 3.0);
+
+      // Blend the 4 saturated 1960s stained-glass lamp colors
+      const w1 = vaneA * (1 - vaneB * 0.4);
+      const w2 = (1 - vaneA) * vaneB;
+      const w3 = Math.pow(radialRay, 2.0) * (1 - r * 0.45);
+      const w4 = (1 - vaneA) * (1 - vaneB) * 0.7;
+      const wSum = w1 + w2 + w3 + w4 + 1e-5;
+
+      const pr = Math.min(255, Math.round(((c1[0] * w1 + c2[0] * w2 + c3[0] * w3 + c4[0] * w4) / wSum) * 1.12));
+      const pg = Math.min(255, Math.round(((c1[1] * w1 + c2[1] * w2 + c3[1] * w3 + c4[1] * w4) / wSum) * 1.12));
+      const pb = Math.min(255, Math.round(((c1[2] * w1 + c2[2] * w2 + c3[2] * w3 + c4[2] * w4) / wSum) * 1.12));
+
+      // Smooth circular disc alpha with internal light-ripple modulation
+      const discAlpha = 1.0 - smoothstep(0.78, 0.99, r);
+      const rippleAlpha = 0.78 + 0.22 * Math.sin(swirlAngle * 2.0 + r * 6.0);
+      const alpha = Math.round(Math.max(0, Math.min(1, discAlpha * rippleAlpha)) * 255);
+
+      const pIdx = (y * size + x) * 4;
+      rgbaBuf[pIdx] = pr;
+      rgbaBuf[pIdx + 1] = pg;
+      rgbaBuf[pIdx + 2] = pb;
+      rgbaBuf[pIdx + 3] = alpha;
+    }
+  }
+
+  const webpBytes = Buffer.from(
+    execFileSync(
+      'ffmpeg',
+      [
+        '-y',
+        '-v', 'error',
+        '-f', 'rawvideo',
+        '-pix_fmt', 'rgba',
+        '-s', `${size}x${size}`,
+        '-i', '-',
+        '-c:v', 'libwebp',
+        '-lossless', '0',
+        '-quality', '86',
+        '-compression_level', '6',
+        '-f', 'webp',
+        '-'
+      ],
+      { input: rgbaBuf }
+    )
+  );
+
+  fs.writeFileSync(lampWebpPath, webpBytes);
+  return webpBytes;
 }
 
 function cropWithFfmpeg(srcImage: string, outPath: string, x: number, y: number, w: number, h: number): void {
@@ -168,9 +263,11 @@ function buildAlphaWebpFromPng(pngPath: string, webpPath: string): { width: numb
       const isPaleBackdrop = smoothstep(0.46, 0.80, lum) * (1.0 - smoothstep(0.12, 0.48, sat));
       const bgMatch = Math.max(bgColorSimilarity * smoothstep(0.38, 0.78, lum) * (1.0 - sat * 0.65), isPaleBackdrop * 0.85);
 
-      const rawBackdropAlpha = 1.0 - bgMatch * (0.90 - centerProtect * 0.36);
-      // Apply steep S-curve alpha contrast so foreground pops and backdrop lets the kitsch lamp shine through
-      const highContrastAlpha = smoothstep(0.12, 0.84, rawBackdropAlpha);
+      const rawBackdropAlpha = 1.0 - bgMatch * (0.92 - centerProtect * 0.30);
+      // Apply steep S-curve alpha contrast so foreground pops and backdrop lets the rotating kitsch-lamp WebP shine through,
+      // plus subtle translucency on bright highlight pigments so the figure itself lights up from behind!
+      const highlightWindow = smoothstep(0.58, 0.88, lum) * (1.0 - smoothstep(0.0, 0.35, 1.0 - lum)) * 0.28;
+      const highContrastAlpha = Math.max(0.08, smoothstep(0.14, 0.82, rawBackdropAlpha) - highlightWindow);
 
       // Boost color saturation (+42%) and warm midtone contrast on foreground character pixels
       const fgStrength = smoothstep(0.25, 0.85, highContrastAlpha);
@@ -241,12 +338,16 @@ function sliceAllFigures(): void {
     const pngPath = path.join(OUT_DIR, `${spec.word}.png`);
     const jpgPath = path.join(OUT_DIR, `${spec.word}.jpg`);
     const webpPath = path.join(OUT_DIR, `${spec.word}.webp`);
+    const lampWebpPath = path.join(OUT_DIR, `lamp_${spec.word}.webp`);
 
     cropWithFfmpeg(srcImage, pngPath, spec.left, spec.top, w, h);
     cropWithFfmpeg(srcImage, jpgPath, spec.left, spec.top, w, h);
 
     const { width, height, webpBytes } = buildAlphaWebpFromPng(pngPath, webpPath);
     const webpDataUri = `data:image/webp;base64,${webpBytes.toString('base64')}`;
+
+    const lampWebpBytes = buildKitschLampWheelWebp(spec, idx, lampWebpPath);
+    const lampWebpDataUri = `data:image/webp;base64,${lampWebpBytes.toString('base64')}`;
 
     const jpgBytes = fs.readFileSync(jpgPath);
     const jpgDataUri = `data:image/jpeg;base64,${jpgBytes.toString('base64')}`;
@@ -256,6 +357,8 @@ function sliceAllFigures(): void {
       index: idx + 1,
       webpUrl: `/aapnootmies/${spec.word}.webp`,
       webpDataUri,
+      lampWebpUrl: `/aapnootmies/lamp_${spec.word}.webp`,
+      lampWebpDataUri,
       fileUrl: `/aapnootmies/${spec.word}.png`,
       jpgUrl: `/aapnootmies/${spec.word}.jpg`,
       dataUri: webpDataUri || jpgDataUri,
@@ -275,7 +378,7 @@ function sliceAllFigures(): void {
     '// ============================================================================',
     '// AUTO-GENERATED BY scripts/slice_aapnootmies.ts (100% Strict TypeScript)',
     '// 17 Cut-Out Classic Dutch "Aap Noot Mies" (Leesplankje) WebP Alpha Figures',
-    '// with 1960s Motion-Lamp Palette Metadata',
+    '// + 17 Dedicated Rotating 1960s Kitsch-Lamp Color-Wheel WebP Assets',
     '// ============================================================================',
     '',
     'export interface AapNootMiesFigureAsset {',
@@ -283,6 +386,8 @@ function sliceAllFigures(): void {
     '  index: number;',
     '  webpUrl: string;',
     '  webpDataUri: string;',
+    '  lampWebpUrl: string;',
+    '  lampWebpDataUri: string;',
     '  fileUrl: string;',
     '  jpgUrl: string;',
     '  dataUri: string;',

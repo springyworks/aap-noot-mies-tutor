@@ -761,7 +761,7 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   const imgY = -imgH / 2;
   const frameDashOffset = Math.round(440 * (1 - drawProgress));
 
-  // Unique deterministic per-word seed so each cell has its own distinct 1960s kitsch lamp layout & rhythm ("not all the same")
+  // Unique deterministic per-word seed so each cell's rotating kitsch-lamp WebP has its own speed, angle & direction
   let wordHash = (anmFigure?.index || 1) * 97;
   for (let c = 0; c < w.length; c++) {
     wordHash = (wordHash * 31 + w.charCodeAt(c)) % 997;
@@ -770,35 +770,30 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   const seedB = ((wordHash * 7) % 100) / 100;
   const seedC = ((wordHash * 13) % 100) / 100;
 
-  // Calm, non-circular 1960s Kitsch Lamp: fixed horizontal anchor per figure + slow vertical thermal rise & color breathing (NO circular rotation!)
+  // 1960s Rotating Kitsch-Lamp Wheel WebP (rotates behind the 100% stationary figure WebP!)
   const lampPrimary = anmFigure?.lampPrimaryHex || primaryStroke;
   const lampSecondary = anmFigure?.lampSecondaryHex || secondaryStroke;
   const lampWarmth = anmFigure?.lampWarmthHex || accentColor;
-  const individualSpeed = 0.22 + seedA * 0.24 + (isHovered ? 0.18 : 0);
-  const lampPhase = animTick * individualSpeed + seedB * Math.PI * 2;
-
-  const blob1X = (seedA - 0.5) * (imgW * 0.46);
-  const blob1Y = Math.sin(lampPhase) * (imgH * 0.24);
-  const blob2X = (seedB - 0.5) * (imgW * 0.48);
-  const blob2Y = -Math.sin(lampPhase * 0.75 + seedC * 4.0) * (imgH * 0.25);
-  const blob3X = (seedC - 0.5) * (imgW * 0.36);
-  const blob3Y = Math.sin(lampPhase * 0.55 + seedA * 5.0) * (imgH * 0.20);
-  const blobScale1 = 1 + Math.sin(lampPhase * 0.9 + seedA * 3) * 0.14;
-  const blobScale2 = 1 + Math.sin(lampPhase * 0.7 + seedB * 5) * 0.16;
-  const colorSatValue = (1.18 + effectiveAliveness * 0.22 + goldenEvolution * 0.35 + (isHovered ? 0.20 : 0)).toFixed(2);
+  const rotDirection = wordHash % 2 === 0 ? 1 : -1;
+  const wheelDegPerSec = (18 + seedA * 20) * (1 + (isHovered ? 0.35 : 0) + goldenEvolution * 0.25);
+  const lampWheelAngle1 = (rotDirection * animTick * wheelDegPerSec + seedB * 360) % 360;
+  const lampWheelAngle2 = (-rotDirection * animTick * (wheelDegPerSec * 0.62) + seedC * 360) % 360;
+  const wheelDiameter = Math.round(Math.hypot(imgW, imgH) * 1.18);
+  const wheelHalf = wheelDiameter / 2;
+  const colorSatValue = (1.22 + effectiveAliveness * 0.22 + goldenEvolution * 0.35 + (isHovered ? 0.22 : 0)).toFixed(2);
 
   return (
     <svg
       viewBox="0 0 200 136"
       className="w-full h-full pointer-events-none select-none overflow-hidden"
       style={{
-        opacity: Math.min(0.99, (showCutoutImage ? 0.88 : 0.45) + effectiveAliveness * 0.10 + goldenEvolution * 0.10),
+        opacity: Math.min(0.99, (showCutoutImage ? 0.92 : 0.45) + effectiveAliveness * 0.08),
         transition: 'opacity 0.2s linear'
       }}
     >
       <defs>
         <radialGradient id={`glow-${w}`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={lampPrimary} stopOpacity={0.32 * fillProgress + goldenEvolution * 0.28} />
+          <stop offset="0%" stopColor={lampPrimary} stopOpacity={0.34 * fillProgress + goldenEvolution * 0.28} />
           <stop offset="100%" stopColor={lampPrimary} stopOpacity={0} />
         </radialGradient>
         {showCutoutImage && (
@@ -809,16 +804,6 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
             <filter id={`anm-sat-${w}`} x="-5%" y="-5%" width="110%" height="110%">
               <feColorMatrix type="saturate" values={colorSatValue} />
             </filter>
-            <radialGradient id={`lamp-blob1-${w}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor={lampWarmth} stopOpacity="0.92" />
-              <stop offset="50%" stopColor={lampPrimary} stopOpacity="0.68" />
-              <stop offset="100%" stopColor={lampPrimary} stopOpacity="0" />
-            </radialGradient>
-            <radialGradient id={`lamp-blob2-${w}`} cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor={lampSecondary} stopOpacity="0.88" />
-              <stop offset="55%" stopColor={lampPrimary} stopOpacity="0.48" />
-              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0" />
-            </radialGradient>
             <linearGradient
               id={`lamp-warm-back-${w}`}
               x1={`${Math.round(seedA * 100)}%`}
@@ -826,9 +811,9 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
               x2={`${Math.round((1 - seedB) * 100)}%`}
               y2="0%"
             >
-              <stop offset="0%" stopColor={lampPrimary} stopOpacity="0.48" />
-              <stop offset="50%" stopColor={lampWarmth} stopOpacity="0.22" />
-              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0.46" />
+              <stop offset="0%" stopColor={lampPrimary} stopOpacity="0.52" />
+              <stop offset="50%" stopColor={lampWarmth} stopOpacity="0.28" />
+              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0.50" />
             </linearGradient>
           </>
         )}
@@ -837,42 +822,43 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       {/* Ambient Aura */}
       <ellipse cx="100" cy="68" rx={76 * pulse} ry={48 * pulse} fill={`url(#glow-${w})`} />
 
-      {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + CALM 1960s KITSCH LAMP BACKDROP (100% STILL IMAGE, NO ROTATION) */}
+      {/* LAYER 1: ROTATING 1960s KITSCH-LAMP WEBP WHEEL -> LAYER 2: 100% STATIONARY FIGURE WEBP ON TOP */}
       {showCutoutImage && anmFigure && (
         <g transform="translate(100, 68)">
           <g
             clipPath={`url(#anm-clip-${w})`}
-            opacity={Math.min(1, 0.88 + effectiveAliveness * 0.12)}
+            opacity={Math.min(1, 0.92 + effectiveAliveness * 0.08)}
           >
-            {/* 1960s Kitsch Lamp Base Chamber (distinct color gradient per figure) */}
+            {/* 1960s Kitsch Lamp Base Chamber */}
             <rect x={imgX} y={imgY} width={imgW} height={imgH} fill={`url(#lamp-warm-back-${w})`} />
 
-            {/* Calm Vertical Thermal Wax Glow Behind Alpha WebP (NO circular orbiting or rotation!) */}
-            <g opacity={Math.min(0.98, 0.72 + effectiveAliveness * 0.18 + goldenEvolution * 0.15)}>
-              <ellipse
-                cx={blob1X.toFixed(2)}
-                cy={blob1Y.toFixed(2)}
-                rx={(imgW * 0.46 * blobScale1).toFixed(2)}
-                ry={(imgH * 0.38 * blobScale2).toFixed(2)}
-                fill={`url(#lamp-blob1-${w})`}
-              />
-              <ellipse
-                cx={blob2X.toFixed(2)}
-                cy={blob2Y.toFixed(2)}
-                rx={(imgW * 0.44 * blobScale2).toFixed(2)}
-                ry={(imgH * 0.42 * blobScale1).toFixed(2)}
-                fill={`url(#lamp-blob2-${w})`}
-              />
-              <circle
-                cx={blob3X.toFixed(2)}
-                cy={blob3Y.toFixed(2)}
-                r={(Math.min(imgW, imgH) * 0.32 * blobScale1).toFixed(2)}
-                fill={`url(#lamp-blob1-${w})`}
-                opacity="0.82"
-              />
-            </g>
+            {/* Dedicated Rotating 1960s Kitsch-Lamp Color-Wheel WebP (Rotates behind the stationary figure!) */}
+            {anmFigure.lampWebpDataUri && (
+              <g opacity={Math.min(0.98, 0.78 + effectiveAliveness * 0.14 + goldenEvolution * 0.12)}>
+                <image
+                  href={anmFigure.lampWebpDataUri}
+                  x={-wheelHalf}
+                  y={-wheelHalf}
+                  width={wheelDiameter}
+                  height={wheelDiameter}
+                  preserveAspectRatio="none"
+                  transform={`rotate(${lampWheelAngle1.toFixed(1)})`}
+                />
+                {/* Second subtle counter-rotating prismatic interference wheel for authentic 1960s Econolite shimmer */}
+                <image
+                  href={anmFigure.lampWebpDataUri}
+                  x={-wheelHalf * 0.92}
+                  y={-wheelHalf * 0.92}
+                  width={wheelDiameter * 0.92}
+                  height={wheelDiameter * 0.92}
+                  preserveAspectRatio="none"
+                  opacity="0.46"
+                  transform={`rotate(${lampWheelAngle2.toFixed(1)})`}
+                />
+              </g>
+            )}
 
-            {/* Transparent Alpha-Channel WebP Character Cut-Out (100% Standing Still + Rich Color Saturation) */}
+            {/* 100% Stationary Alpha-Channel WebP Character Cut-Out on Top (Lit from behind by the rotating kitsch-lamp WebP!) */}
             <image
               href={anmFigure.webpDataUri || anmFigure.dataUri}
               x={imgX}
