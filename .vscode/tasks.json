@@ -17,13 +17,13 @@
     {
       "label": "Rebuild Standalone App Bundle (esbuild)",
       "type": "shell",
-      "command": "python3 scripts/build_standalone.py",
+      "command": "npx tsx scripts/build_standalone.ts",
       "problemMatcher": []
     },
     {
       "label": "Slice 17 Aap-Noot-Mies Figures",
       "type": "shell",
-      "command": "python3 scripts/slice_aapnootmies.py",
+      "command": "npx tsx scripts/slice_aapnootmies.ts",
       "problemMatcher": []
     }
   ]

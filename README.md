@@ -32,8 +32,11 @@ Teaching is launching a rocket inside the brain: the brain builds a mental model
 ├── rt_tutor.tsx                      # Root TypeScript component (synced with src/App.tsx)
 ├── readme_md.md / README.md          # Project documentation & AI assistant rules
 ├── scripts/
-│   ├── slice_aapnootmies.py          # Slices 17 figures from source board -> public/aapnootmies/ & src/aapNootMiesAssets.ts
-│   └── build_standalone.py           # Instant esbuild bundler -> dist/rt_tutor_app.html
+│   ├── slice_aapnootmies.ts          # Strict TypeScript slicer: cuts 17 figures -> public/aapnootmies/ & src/aapNootMiesAssets.ts
+│   ├── build_standalone.ts           # Strict TypeScript bundler: esbuild -> dist/rt_tutor_app.html & dist/*.mjs
+│   └── playwright_exerciser.ts       # Strict TypeScript Channel 2 automated MCP & UI exerciser
+├── server/
+│   └── mcp_transponder.ts            # Strict TypeScript Channel 1 MCP JSON-RPC 2.0 + SSE + Telemetry server (:3001)
 ├── public/
 │   └── aapnootmies/                  # All 17 individual .png/.jpg figures, board crops & contact_sheet.png
 ├── src/
@@ -48,13 +51,13 @@ Teaching is launching a rocket inside the brain: the brain builds a mental model
 
 ## 🚀 Local Development Setup (VSCode & Antigravity)
 
-### Option A: Instant Standalone Build (Zero npm install required)
-You can compile and run the full React + TypeScript + 17-Figure SVG app immediately using the built-in standalone bundler:
+### Option A: Instant Standalone Build (100% Strict TypeScript)
+You can slice the 17 figures, compile the standalone bundle, and launch the live MCP Transponder immediately in TypeScript:
 ```bash
-python3 scripts/slice_aapnootmies.py
-python3 scripts/build_standalone.py
-# Open dist/rt_tutor_app.html directly in your browser or serve locally:
-python3 -m http.server 8080 --directory dist
+npm run slice:aapnootmies
+npm run bundle:standalone
+npm run transponder
+# Open http://localhost:3001 in your browser or Edge DevTools
 ```
 
 ### Option B: Standard Vite Dev Server
@@ -101,5 +104,4 @@ The workspace includes a zero-dependency TypeScript MCP Transponder (`server/mcp
 2. **The "No Angry Tutor" Mandate:** The `TutorEmotion` type has 18 distinct states. You are strictly forbidden from adding emotions like 'ANGRY', 'SAD', 'DISAPPOINTED', or 'FRUSTRATED'. Fallback to 'CURIOUS' or 'GENTLE_SURPRISE' on user errors.
 3. **SVG Generation & Cut-Out Figures:** The user relies on bespoke inline SVGs using a "Ligne-Claire" (Clear Line) aesthetic combined with the 17 sliced Aap-Noot-Mies figures (`AAP_NOOT_MIES_FIGURES` in `src/aapNootMiesAssets.ts`). When adding or modifying SVGs in `CellSvgUnderlay`, use `strokeDasharray` and `strokeDashoffset` bound to `drawProgress` / `aliveness` props so frames and lines "draw themselves" over time around the animated figure `<image>`.
 4. **Colors:** Stick strictly to the European Montessori muted palette provided in the file (`EURO_RGB` / `EUROPEAN_HEX`). Do not use loud, neon, or "Mickey Mouse" primary colors.
-5. **Code Structure:** Keep `src/App.tsx` and `rt_tutor.tsx` synchronized, and run `python3 scripts/build_standalone.py` after edits so `dist/rt_tutor_app.html` stays up to date. Ensure mobile-safeguards (`overscroll-none`, `touch-action: manipulation`) are preserved in the CSS/HTML wrappers.
-
+5. **Code Structure & Strict TypeScript Only:** All project code, servers, slicers, and bundlers must be written in **100% strict TypeScript** (no Python scripts in the repo). Keep `src/App.tsx` and `rt_tutor.tsx` synchronized, and run `npm run bundle:standalone` (`scripts/build_standalone.ts`) after edits so `dist/rt_tutor_app.html` stays up to date. Ensure mobile-safeguards (`overscroll-none`, `touch-action: manipulation`) are preserved in the CSS/HTML wrappers.

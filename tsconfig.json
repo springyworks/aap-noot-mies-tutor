@@ -16,6 +16,6 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "rt_tutor.tsx"]
+  "include": ["src", "rt_tutor.tsx", "server", "scripts", "playwright.config.ts"]
 }
 
