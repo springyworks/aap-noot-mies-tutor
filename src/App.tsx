@@ -236,7 +236,8 @@ export interface DrillThroughContextPacket {
 
 const DICTIONARIES: Record<LanguageCode, Record<number, string[]>> = {
   en: {
-    0: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
+    // 15 distinct initial letters matching the 15 distinct Leesplankje figure initials (1-to-1 figure-to-letter mapping!)
+    0: ['a', 'b', 'd', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 's', 't', 'v', 'w', 'z'],
     1: ['cat', 'dog', 'cow', 'car', 'sun', 'bat', 'hat', 'run', 'joy', 'boy', 'toy', 'bed', 'red', 'fox', 'box'],
     2: ['cat', 'car', 'dog', 'dot', 'cow', 'cop', 'sun', 'son', 'bat', 'bag', 'red', 'rat', 'box', 'boy'],
     3: ['audio', 'auto', 'aunt', 'autumn', 'august', 'aura', 'bear', 'beat', 'bean', 'beak', 'beef', 'beer', 'cold', 'coal', 'coat', 'coin', 'coil', 'corn'],
@@ -244,7 +245,8 @@ const DICTIONARIES: Record<LanguageCode, Record<number, string[]>> = {
     5: ['though', 'thought', 'through', 'thorough', 'tough', 'trough', 'thrill', 'thrive', 'threat', 'thread', 'throne', 'thrust']
   },
   nl: {
-    0: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'z'],
+    // 15 unieke beginletters die 1-op-1 overeenkomen met de bijbehorende Aap-Noot-Mies Leesplankje figuren!
+    0: ['a', 'b', 'd', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 's', 't', 'v', 'w', 'z'],
     1: ['kat', 'hond', 'koe', 'auto', 'zon', 'bal', 'dak', 'bel', 'oog', 'oor', 'bed', 'rood', 'vos', 'doos', 'vis'],
     2: ['kat', 'kip', 'koe', 'koek', 'auto', 'aap', 'zon', 'zee', 'bal', 'beer', 'dak', 'deur'],
     3: ['boom', 'boot', 'boer', 'boek', 'bord', 'bank', 'huis', 'hout', 'hond', 'hert', 'haas', 'hoed'],
@@ -268,7 +270,7 @@ const PRAISES: Record<LanguageCode, string[]> = {
     "Yes, beautiful reading! Look how nicely that fits.",
     "You spotted that all by yourself, lovely!",
     "Wonderful darling, you are reading so smoothly!",
-    "Yes, that is the right word, super!",
+    "Yes, that is the right one, super!",
     "Oh how nice, you saw that right away!",
     "Beautifully done, let us look at the next one together.",
     "Yes, spot on! You have a great eye for the letters.",
@@ -659,12 +661,15 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
     n: 'noot',
     o: 'noot',
     p: 'aap',
+    q: 'kees',
     r: 'vuur',
     s: 'schapen',
     t: 'teun',
     u: 'duif',
     v: 'vuur',
     w: 'wim',
+    x: 'bok',
+    y: 'wim',
     z: 'zus',
     schaap: 'lam',
     vlam: 'vuur',
@@ -715,9 +720,9 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
     (LEESPLANK_WORD_ALIASES[w] ? AAP_NOOT_MIES_FIGURES[LEESPLANK_WORD_ALIASES[w]] : undefined);
 
   const getIllustrationType = (str: string): string => {
-    if (str.length === 1) return 'letter_constellation';
     const resolved = LEESPLANK_WORD_ALIASES[str] || str;
     if (AAP_NOOT_MIES_FIGURES[resolved]) return `jetses_${resolved}`;
+    if (str.length === 1) return 'letter_constellation';
     if (['boy', 'boer', 'aunt'].includes(str)) return 'friendly_character';
     if (['vogel', 'vleugel', 'kip', 'bat', 'beak'].includes(str)) return 'bird';
     if (['kat', 'cat', 'vos', 'fox'].includes(str)) return 'cat';
@@ -2038,12 +2043,10 @@ const TutorAvatarHeader: React.FC<TutorAvatarProps> = ({
 // ============================================================================
 
 export default function RTTutor() {
-  // Core Persistent States
+  // Core Persistent States — Always default to Level 0 ('standard' mode, single letters with Leesplankje figures)
   const [started, setStarted] = useState<boolean>(false);
-  const [curriculumMode, setCurriculumMode] = useState<CurriculumMode>(
-    () => (localStorage.getItem('tutor_curriculum') as CurriculumMode) || 'aapnootmies'
-  );
-  const [level, setLevel] = useState<number>(() => parseInt(localStorage.getItem('tutor_level') || '1', 10) || 1);
+  const [curriculumMode, setCurriculumMode] = useState<CurriculumMode>('standard');
+  const [level, setLevel] = useState<number>(0);
   const [language, setLanguage] = useState<LanguageCode>(() => (localStorage.getItem('tutor_lang') as LanguageCode) || 'nl');
   const [autoLevel, setAutoLevel] = useState<boolean>(true);
   const [inspectMode, setInspectMode] = useState<boolean>(false);
@@ -2580,8 +2583,13 @@ export default function RTTutor() {
             goldenSpokenStageRef.current = 3;
             setTutorEmotion('RADIANT');
             playSynth('golden');
-            const msgNL = `Je wijst al langere tijd naar de gouden cel '${activeHover}'! Kijk eens hoe het bewegende figuurtje helemaal tot bloei komt.`;
-            const msgEN = `You are hovering right over the golden cell '${activeHover}'! Look how the moving figure is blooming to life.`;
+            const isSingleCharHover = activeHover.length === 1;
+            const msgNL = isSingleCharHover
+              ? `Ja hoor lieverd, daar staat de letter '${activeHover}'!`
+              : `Ja hoor lieverd, daar staat '${activeHover}'!`;
+            const msgEN = isSingleCharHover
+              ? `Yes darling, there is the letter '${activeHover}'!`
+              : `Yes darling, there is '${activeHover}'!`;
             setIntrospectionLog(language === 'nl' ? msgNL : msgEN);
             if (introspectionLevel >= 1 && !isVoiceSilent) {
               speakText(language === 'nl' ? msgNL : msgEN, { emotionOverride: 'RADIANT' });
@@ -2623,23 +2631,32 @@ export default function RTTutor() {
         speakVariedFromArray(IDLE_PROMPTS[language], 'idle', 'PATIENT');
       }
 
-      // 3. PROGRESSIVE INTROSPECTION & NATURAL NON-"SVG" EXPLANATION
+      // 3. PROGRESSIVE INTROSPECTION (Strictly distinguishes single-letter Level 0 vs multi-letter words!)
       if (!isVoiceSilent && currentIdle < 15000) {
         if (elapsed > baseThreshold && spokenStageRef.current < 1) {
           spokenStageRef.current = 1;
           setTutorEmotion('CONTEMPLATIVE');
 
+          const isSingleLetterTarget = currentRound.target.length === 1;
           const sameFirstCount = currentRound.options.filter(
             w => w.charAt(0) === currentRound.target.charAt(0)
           ).length;
 
-          const logL1 = language === 'nl'
-            ? `Ik laat nu alle eerste letters zachtjes verkleuren en wek de bewegende lijntekeningetjes onder de woorden, zodat je de beginletters kunt vergelijken.`
-            : `I am now gently coloring all first letters and waking the moving line drawings under the words so you can compare how they start.`;
+          const logL1 = isSingleLetterTarget
+            ? (language === 'nl'
+                ? `Kijk maar rustig naar het plaatje en de letter '${currentRound.target}' eronder.`
+                : `Look calmly at the picture and the letter '${currentRound.target}' below it.`)
+            : (language === 'nl'
+                ? `Kijk maar rustig naar het plaatje en de beginletter '${currentRound.target.charAt(0)}'.`
+                : `Look calmly at the picture and the first letter '${currentRound.target.charAt(0)}'.`);
 
-          const logL2 = language === 'nl'
-            ? `Introspectie L2: na ${(baseThreshold / 1000).toFixed(0)} seconden wachttijd kleur ik alle eerste letters zandkleurig en ontwaken onze schaalbare lijntekeningetjes, de bewegende figuurtjes. Er zijn ${sameFirstCount} opties met de beginletter '${currentRound.target.charAt(0)}'.`
-            : `Introspection L2: after ${(baseThreshold / 1000).toFixed(0)} seconds throttle, illuminating all 1st letters and waking our scalable line drawings, the moving figures. ${sameFirstCount} options share '${currentRound.target.charAt(0)}'.`;
+          const logL2 = isSingleLetterTarget
+            ? (language === 'nl'
+                ? `Na ${(baseThreshold / 1000).toFixed(0)} seconden geef ik de gezochte letter '${currentRound.target}' een warme kleur onder het bijbehorende leesplank-figuurtje.`
+                : `After ${(baseThreshold / 1000).toFixed(0)} seconds, coloring the target letter '${currentRound.target}' below its matching figure.`)
+            : (language === 'nl'
+                ? `Na ${(baseThreshold / 1000).toFixed(0)} seconden kleur ik de beginletter '${currentRound.target.charAt(0)}'. Er zijn ${sameFirstCount} woorden met de beginletter '${currentRound.target.charAt(0)}'.`
+                : `After ${(baseThreshold / 1000).toFixed(0)} seconds, coloring the first letter '${currentRound.target.charAt(0)}'. ${sameFirstCount} words start with '${currentRound.target.charAt(0)}'.`);
 
           setIntrospectionLog(introspectionLevel === 2 ? logL2 : logL1);
 
@@ -2657,12 +2674,12 @@ export default function RTTutor() {
 
           const prefix2 = currentRound.target.substring(0, 2);
           const logL1 = language === 'nl'
-            ? `Kijk eens naar de tweede letter en de bewegende figuurtjes onder de vakjes. Welke past bij ${currentRound.target}?`
-            : `Look closely at the second letter and the moving figures under the cells. Which one matches ${currentRound.target}?`;
+            ? `Kijk eens naar de tweede letter en de verlichte figuurtjes boven de woorden. Welke past bij ${currentRound.target}?`
+            : `Look closely at the second letter and the lit figures above the words. Which one matches ${currentRound.target}?`;
 
           const logL2 = language === 'nl'
-            ? `Introspectie L2: ik activeer nu de tweede letter-kleur voor woorden die beginnen met '${prefix2}', en de bewegende figuurtjes zijn nu voor ${Math.round(aliveness * 100)} procent ontwaakt.`
-            : `Introspection L2: activating 2nd-letter Sage coloring for words matching '${prefix2}', with the moving figures now ${Math.round(aliveness * 100)} percent awake.`;
+            ? `Ik activeer nu de tweede letter-kleur voor woorden die beginnen met '${prefix2}'.`
+            : `Activating second-letter coloring for words starting with '${prefix2}'.`;
 
           setIntrospectionLog(introspectionLevel === 2 ? logL2 : logL1);
 
@@ -3559,6 +3576,7 @@ export default function RTTutor() {
 
       setTutorEmotion(newStreak >= 2 ? 'WARM_PRIDE' : 'DELIGHTED');
 
+      const isSingleCharHit = word.length === 1;
       const now = Date.now();
       if (now - lastOpaKoTime.current > 3600000) {
         setTimeout(() => {
@@ -3567,20 +3585,19 @@ export default function RTTutor() {
         }, 1800);
       } else if (introspectionLevel === 2) {
         const msg = language === 'nl'
-          ? `Goed zo lieverd! Je herkende '${word}' in ${(elapsedTime / 1000).toFixed(1)} seconden.`
-          : `Well done darling! You spotted '${word}' in ${(elapsedTime / 1000).toFixed(1)} seconds.`;
+          ? `Goed zo lieverd! Je herkende ${isSingleCharHit ? `de letter '${word}'` : `het woord '${word}'`} in ${(elapsedTime / 1000).toFixed(1)} seconden.`
+          : `Well done darling! You spotted ${isSingleCharHit ? `the letter '${word}'` : `the word '${word}'`} in ${(elapsedTime / 1000).toFixed(1)} seconds.`;
         speakText(msg, { emotionOverride: 'WARM_PRIDE', cancelFirst: true });
       } else {
         speakVariedFromArray(PRAISES[language], 'praise', newStreak >= 2 ? 'WARM_PRIDE' : 'DELIGHTED');
       }
 
-      if (autoLevel && curriculumMode === 'standard' && newStreak >= 2) {
+      if (autoLevel && curriculumMode === 'standard' && newStreak >= 5) {
         playSynth('levelup');
         setStreak(0);
         const nextLvl = Math.min(5, level + 1);
         setLevel(nextLvl);
         localStorage.setItem('tutor_level', String(nextLvl));
-        if (nextLvl === 0) setKineticMode(true);
         generateRound(nextLvl, 0, curriculumMode);
       } else {
         playSynth('correct');
@@ -3588,29 +3605,38 @@ export default function RTTutor() {
         generateRound(level, newStreak, curriculumMode);
       }
     } else {
-      // EXPLORATORY / DISTRACTOR CLICK -> CURIOUS / GENTLE_SURPRISE (NEVER ANGRY!)
+      // EXPLORATORY / DISTRACTOR CLICK -> CURIOUS / GENTLE_SURPRISE (NEVER ANGRY, NEVER CALLS 1 LETTER A WORD!)
       playSynth('curious');
       const sharedLen = getMatchingPrefixLength(currentRound.target, word);
+      const isSingleChar = word.length === 1 || currentRound.target.length === 1;
       setTutorEmotion(sharedLen > 0 ? 'GENTLE_SURPRISE' : 'CURIOUS');
 
       if (introspectionLevel === 0) {
         speakWord(word, curriculumMode === 'aapnootmies' ? 'nl' : undefined);
       } else if (introspectionLevel === 1) {
-        const msg = language === 'nl'
-          ? `Hé, dat is '${word}'! Mooi woord om te ontdekken, laten we nu kijken waar '${currentRound.target}' zit.`
-          : `Aha, that says '${word}'! Nice word to explore, let's see where '${currentRound.target}' is hiding.`;
+        const msg = isSingleChar
+          ? (language === 'nl'
+              ? `Dat is de letter '${word}' lieverd, laten we kijken waar de letter '${currentRound.target}' staat.`
+              : `That is the letter '${word}' darling, let's see where the letter '${currentRound.target}' is.`)
+          : (language === 'nl'
+              ? `Dat is '${word}' lieverd, laten we kijken waar '${currentRound.target}' staat.`
+              : `That is '${word}' darling, let's see where '${currentRound.target}' is.`);
         speakText(msg, { emotionOverride: 'CURIOUS', cancelFirst: true });
       } else {
-        const msg = language === 'nl'
-          ? `Introspectie: je verkende '${word}'. ${sharedLen > 0 ? `Goed gezien dat de eerste ${sharedLen === 1 ? 'letter klopt' : `${sharedLen} letters kloppen`}!` : `Dit woord begint met de '${word.charAt(0)}', en voor ons brein-model zoeken we de '${currentRound.target.charAt(0)}'.`}`
-          : `Introspection: you explored '${word}'. ${sharedLen > 0 ? `Great eye, the first ${sharedLen} letter matches!` : `This starts with '${word.charAt(0)}', while our brain model looks for '${currentRound.target.charAt(0)}'.`}`;
+        const msg = isSingleChar
+          ? (language === 'nl'
+              ? `Je tikte op de letter '${word}', en we zoeken nu de letter '${currentRound.target}'.`
+              : `You tapped the letter '${word}', and we are looking for the letter '${currentRound.target}'.`)
+          : (language === 'nl'
+              ? `Je verkende het woord '${word}'. ${sharedLen > 0 ? `Goed gezien dat de eerste ${sharedLen === 1 ? 'letter klopt' : `${sharedLen} letters kloppen`}!` : `Dit woord begint met de letter '${word.charAt(0)}', en we zoeken '${currentRound.target}' met de beginletter '${currentRound.target.charAt(0)}'.`}`
+              : `You explored the word '${word}'. ${sharedLen > 0 ? `Great eye, the first ${sharedLen === 1 ? 'letter matches' : `${sharedLen} letters match`}!` : `This word starts with '${word.charAt(0)}', while we are looking for '${currentRound.target}' starting with '${currentRound.target.charAt(0)}'.`}`);
         speakText(msg, { emotionOverride: 'CURIOUS', cancelFirst: true });
       }
 
       setIntrospectionLog(
         language === 'nl'
-          ? `[Nieuwsgierige Verkenning] Klik op "${word}" i.p.v. "${currentRound.target}" (Prefix-match=${sharedLen}) -> Tutor blijft 100% vriendelijk.`
-          : `[Curious Exploration] Clicked "${word}" vs "${currentRound.target}" (Prefix-match=${sharedLen}) -> Tutor stays 100% supportive.`
+          ? `[Nieuwsgierige Verkenning] Klik op ${isSingleChar ? `letter "${word}"` : `woord "${word}"`} i.p.v. "${currentRound.target}" -> Tutor blijft 100% vriendelijk.`
+          : `[Curious Exploration] Clicked ${isSingleChar ? `letter "${word}"` : `word "${word}"`} vs "${currentRound.target}" -> Tutor stays 100% supportive.`
       );
 
       if (autoLevel && curriculumMode === 'standard' && streak <= -1) {
@@ -3677,14 +3703,14 @@ export default function RTTutor() {
     setIntrospectionLevel(nextLvl);
     localStorage.setItem('tutor_introspect_lvl', String(nextLvl));
     const descNL = [
-      'Introspectie L0: Enkel doelwoord en warme aanmoediging.',
-      'Introspectie L1: Tutor legt rustig de leesstrategie en de bewegende figuurtjes uit.',
-      'Introspectie L2: Volledige zelf-introspectie van interne variabelen, 2D-FFT en onze schaalbare lijntekeningetjes.'
+      'Introspectie nul: Enkel de gezochte letter of het woord en warme aanmoediging.',
+      'Introspectie één: Tutor geeft rustige uitleg bij de letters, woorden en de verlichte leesplank-figuurtjes.',
+      'Introspectie twee: Volledige uitleg van de wachttijd en letter-herkenning.'
     ][nextLvl];
     const descEN = [
-      'Introspection L0: Target word and warm praise only.',
-      'Introspection L1: Tutor gently explains reading strategies and the moving figures.',
-      'Introspection L2: Deep verbal introspection of internal variables, 2D-FFT and our scalable line drawings.'
+      'Introspection zero: Target letter or word and warm praise only.',
+      'Introspection one: Tutor gently explains the letters, words and the lit figures.',
+      'Introspection two: Full explanation of timing and letter recognition.'
     ][nextLvl];
     const text = language === 'nl' ? descNL : descEN;
     setIntrospectionLog(text);
@@ -3697,10 +3723,12 @@ export default function RTTutor() {
     if (isVoiceSilent) setIsVoiceSilent(false);
     idlePhaseRef.current = 0;
 
-    const goldenMs = cellDwellRef.current[currentRound?.target || ''] || 0;
+    const targetStr = currentRound?.target || '';
+    const isSingleCharTarget = targetStr.length === 1;
+    const goldenMs = cellDwellRef.current[targetStr] || 0;
     const msg = language === 'nl'
-      ? `Status rapport: Mijn expressie is ${EMOTION_META[tutorEmotion].labelNL.replace(/^\d+\.\s*/, '').toLowerCase()}. We zoeken '${currentRound?.target}'. Je hebt deze ronde ${Math.round(goldenMs)} milliseconden boven de gouden cel gezweefd, en de bewegende figuurtjes onder de woorden zijn voor ${Math.round(aliveness * 100)} procent ontwaakt.`
-      : `State report: My expression is ${EMOTION_META[tutorEmotion].labelEN.replace(/^\d+\.\s*/, '').toLowerCase()}. We are looking for '${currentRound?.target}'. You hovered ${Math.round(goldenMs)} milliseconds over the golden cell, and the moving figures under the words are ${Math.round(aliveness * 100)} percent awake.`;
+      ? `We zoeken nu ${isSingleCharTarget ? `de letter '${targetStr}'` : `het woord '${targetStr}'`}. Je hebt deze ronde ${Math.round(goldenMs)} milliseconden bij het juiste vakje gekeken.`
+      : `We are looking for ${isSingleCharTarget ? `the letter '${targetStr}'` : `the word '${targetStr}'`}. You looked at the target cell for ${Math.round(goldenMs)} milliseconds.`;
     setIntrospectionLog(msg);
     speakText(msg, { emotionOverride: tutorEmotion, bypassSilence: true, cancelFirst: true });
   };
