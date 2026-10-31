@@ -89,29 +89,30 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 /**
- * Generates a dedicated 1960s Kitsch Motion-Lamp Rotary Color-Wheel WebP
- * (`public/aapnootmies/lamp_<word>.webp`).
- * Painted with wavy prismatic stained-glass pinwheel sectors, warm radial
- * light beams, and rippled heat-wheel rings so that rotating this WebP behind
- * the stationary figure WebP lights up the figure with authentic 1960s liveliness!
+ * Generates a dedicated 1960s Econolite / Scene-in-Action Motion-Lamp
+ * Rippled Light-Cylinder WebP (`public/aapnootmies/lamp_<word>.webp`).
+ *
+ * How a real 1960s Econolite waterfall/ember lamp works:
+ * A warm incandescent bulb sits inside a slowly rotating cylinder molded with
+ * fine diagonal rippled glass flutes (creating cascading waterfall / rising ember
+ * interference bands of warm golden light and soft amber shadow).
+ * When masked strictly to the stationary figure cut-out, ONLY the figure itself
+ * shimmers softly from within while the cell background stays 100% calm and dark.
  */
 function buildKitschLampWheelWebp(spec: FigureCropSpec, idx: number, lampWebpPath: string): Buffer {
   const size = 180;
   const rgbaBuf = Buffer.alloc(size * size * 4);
 
-  const c1 = hexToRgb(spec.lampPrimaryHex);
-  const c2 = hexToRgb(spec.lampSecondaryHex);
-  const c3 = hexToRgb(spec.lampWarmthHex);
-  // Complementary 1960s jewel accent
-  const c4: [number, number, number] = [
-    Math.min(255, Math.round((c1[1] + c2[2]) * 0.65)),
-    Math.min(255, Math.round((c2[0] + c3[1]) * 0.55)),
-    Math.min(255, Math.round((c1[0] + c3[2]) * 0.65))
-  ];
+  const cPrimary = hexToRgb(spec.lampPrimaryHex);
+  const cSecondary = hexToRgb(spec.lampSecondaryHex);
+  const cWarmth = hexToRgb(spec.lampWarmthHex);
+  // Warm 40W incandescent tungsten bulb core (#fffbeb / #fde68a)
+  const cBulb: [number, number, number] = [255, 248, 220];
 
-  const petals = 5 + (idx % 4); // 5 to 8 wavy heat-wheel vanes per character
-  const twist = (idx % 2 === 0 ? 1 : -1) * (2.2 + (idx % 3) * 0.45);
-  const phaseOffset = idx * 1.17;
+  // 1960s Econolite cylinder has 10..14 fine rippled flutes + gentle spiral twist
+  const flutes = 10 + (idx % 5);
+  const spiralTwist = (idx % 2 === 0 ? 1 : -1) * (3.8 + (idx % 3) * 0.7);
+  const phaseOffset = idx * 1.37;
 
   for (let y = 0; y < size; y++) {
     const ny = (y - size * 0.5) / (size * 0.5);
@@ -120,27 +121,31 @@ function buildKitschLampWheelWebp(spec: FigureCropSpec, idx: number, lampWebpPat
       const r = Math.sqrt(nx * nx + ny * ny);
       const theta = Math.atan2(ny, nx);
 
-      // Wavy 1960s Econolite rotary heat-cylinder vane pattern
-      const swirlAngle = theta * petals + r * twist + Math.sin(r * 9.0 + phaseOffset) * 0.85;
-      const vaneA = 0.5 + 0.5 * Math.sin(swirlAngle);
-      const vaneB = 0.5 + 0.5 * Math.cos(swirlAngle * 0.5 - r * 4.5 + phaseOffset);
-      const radialRay = 0.5 + 0.5 * Math.sin(theta * (petals * 2) - r * 3.0);
+      // Fine rippled glass waterfall / ember interference waves
+      const fluteWave = Math.sin(theta * flutes + r * spiralTwist + Math.sin(r * 11.0 + phaseOffset) * 0.65);
+      const secondaryRipple = Math.cos(theta * (flutes - 3) - r * (spiralTwist * 0.7) + phaseOffset);
+      // Softly peaked light crests (like refracted caustics through rippled plastic cylinder)
+      const causticCrest = Math.pow(0.5 + 0.5 * fluteWave, 1.8);
+      const warmUndertone = 0.5 + 0.5 * secondaryRipple;
 
-      // Blend the 4 saturated 1960s stained-glass lamp colors
-      const w1 = vaneA * (1 - vaneB * 0.4);
-      const w2 = (1 - vaneA) * vaneB;
-      const w3 = Math.pow(radialRay, 2.0) * (1 - r * 0.45);
-      const w4 = (1 - vaneA) * (1 - vaneB) * 0.7;
-      const wSum = w1 + w2 + w3 + w4 + 1e-5;
+      // Subtle, warm blend between incandescent bulb gold and character accent tints
+      const wBulb = causticCrest * 0.55;
+      const wWarm = (1.0 - causticCrest * 0.4) * 0.45;
+      const wPrim = warmUndertone * 0.38;
+      const wSec = (1.0 - warmUndertone) * 0.32;
+      const wSum = wBulb + wWarm + wPrim + wSec + 1e-5;
 
-      const pr = Math.min(255, Math.round(((c1[0] * w1 + c2[0] * w2 + c3[0] * w3 + c4[0] * w4) / wSum) * 1.12));
-      const pg = Math.min(255, Math.round(((c1[1] * w1 + c2[1] * w2 + c3[1] * w3 + c4[1] * w4) / wSum) * 1.12));
-      const pb = Math.min(255, Math.round(((c1[2] * w1 + c2[2] * w2 + c3[2] * w3 + c4[2] * w4) / wSum) * 1.12));
+      // Modulate brightness between soft warm shadow trough (0.38) and warm incandescent crest (1.06)
+      // so rotating this wheel behind the figure's translucent pigments creates gentle 1960s waterfall/ember motion!
+      const intensity = 0.38 + 0.68 * causticCrest;
+      const pr = Math.min(255, Math.round(((cBulb[0] * wBulb + cWarmth[0] * wWarm + cPrimary[0] * wPrim + cSecondary[0] * wSec) / wSum) * intensity));
+      const pg = Math.min(255, Math.round(((cBulb[1] * wBulb + cWarmth[1] * wWarm + cPrimary[1] * wPrim + cSecondary[1] * wSec) / wSum) * intensity));
+      const pb = Math.min(255, Math.round(((cBulb[2] * wBulb + cWarmth[2] * wWarm + cPrimary[2] * wPrim + cSecondary[2] * wSec) / wSum) * intensity));
 
-      // Smooth circular disc alpha with internal light-ripple modulation
-      const discAlpha = 1.0 - smoothstep(0.78, 0.99, r);
-      const rippleAlpha = 0.78 + 0.22 * Math.sin(swirlAngle * 2.0 + r * 6.0);
-      const alpha = Math.round(Math.max(0, Math.min(1, discAlpha * rippleAlpha)) * 255);
+      // Confine the lamp beam to the central figure zone (fades to 0 before the tile borders)
+      const discAlpha = 1.0 - smoothstep(0.52, 0.88, r);
+      const bandAlpha = 0.55 + 0.45 * causticCrest;
+      const alpha = Math.round(Math.max(0, Math.min(1, discAlpha * bandAlpha)) * 255);
 
       const pIdx = (y * size + x) * 4;
       rgbaBuf[pIdx] = pr;
@@ -184,11 +189,17 @@ function cropWithFfmpeg(srcImage: string, outPath: string, x: number, y: number,
 }
 
 /**
- * Extracts raw RGBA pixels from the cropped PNG, computes a continuous 1960s
- * cut-out alpha matte (combining a feathered squircle-oval silhouette with
- * adaptive backdrop/sky translucency so the 1960s motion-lamp lava blobs
- * glow softly behind the character while keeping the subject crisp), and
- * encodes a true RGBA WebP (`yuva420p` / `libwebp`).
+ * Extracts raw RGBA pixels from the cropped PNG and builds an authentic 1960s
+ * Econolite / Scene-in-Action figure cut-out WebP (`<word>.webp`):
+ * 1. Outer background/sky/wall around the figure is cleanly removed (`alpha = 0`)
+ *    via border-seeded flood-fill + soft 3px spatial feathering, so there is ZERO
+ *    rectangular box or background clutter in the cell.
+ * 2. Inside the figure silhouette itself:
+ *    - Dark Cornelis Jetses ink outlines stay 100% opaque (`alpha = 1.0`).
+ *    - Colored & highlighted painted regions of the figure (fur, clothes, fire,
+ *      water, foliage, feathers) have subtle 1960s lithograph translucency
+ *      (`alpha = 0.72..0.92`), allowing the masked rotating `lamp_<word>.webp`
+ *      directly behind the figure to softly illuminate ONLY the figure itself!
  */
 function buildAlphaWebpFromPng(pngPath: string, webpPath: string): { width: number; height: number; webpBytes: Buffer } {
   const probe = execFileSync(
@@ -202,40 +213,34 @@ function buildAlphaWebpFromPng(pngPath: string, webpPath: string): { width: numb
     execFileSync('ffmpeg', ['-v', 'error', '-i', pngPath, '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'])
   );
 
-  // Sample perimeter/upper-corner backdrop colors to identify the painted sky/wall tone
+  // Sample perimeter backdrop colors (top/left/right/bottom border strip)
   const bgSamples: Array<[number, number, number]> = [];
-  for (let x = 6; x < width - 6; x += 8) {
-    for (const y of [4, 8, 14]) {
+  for (let x = 4; x < width - 4; x += 6) {
+    for (const y of [3, 7, height - 6]) {
       const idx = (y * width + x) * 4;
       bgSamples.push([rgbaBuf[idx], rgbaBuf[idx + 1], rgbaBuf[idx + 2]]);
     }
   }
-  for (let y = 10; y < Math.floor(height * 0.65); y += 10) {
-    for (const x of [4, 8, width - 9, width - 5]) {
+  for (let y = 6; y < height - 6; y += 8) {
+    for (const x of [3, 7, width - 8, width - 4]) {
       const idx = (y * width + x) * 4;
       bgSamples.push([rgbaBuf[idx], rgbaBuf[idx + 1], rgbaBuf[idx + 2]]);
     }
   }
 
+  // Compute per-pixel background affinity (how closely it matches the outer wall/sky/ground border)
+  const totalPixels = width * height;
+  const bgAffinity = new Float32Array(totalPixels);
   for (let y = 0; y < height; y++) {
-    // Normalized coordinates in [-1, 1]
     const ny = (y - height * 0.5) / (height * 0.5);
     for (let x = 0; x < width; x++) {
       const nx = (x - width * 0.5) / (width * 0.5);
-      const idx = (y * width + x) * 4;
+      const p = y * width + x;
+      const idx = p * 4;
       const r = rgbaBuf[idx];
       const g = rgbaBuf[idx + 1];
       const b = rgbaBuf[idx + 2];
 
-      // 1. Feathered Squircle-Oval Vignette (eliminates hard rectangular box edges)
-      const ellDist = Math.sqrt(nx * nx * 0.92 + ny * ny * 0.96);
-      const sqDist = Math.pow(Math.pow(Math.abs(nx), 3.2) + Math.pow(Math.abs(ny), 3.2), 1 / 3.2);
-      const radialDist = ellDist * 0.65 + sqDist * 0.35;
-      // Alpha goes from 1.0 inside r<=0.74 smoothly down to 0.0 at r>=0.98
-      const edgeAlpha = 1.0 - smoothstep(0.72, 0.98, radialDist);
-
-      // 2. Backdrop / Sky / Parchment Translucency Matte
-      // Measure minimum color distance to sampled perimeter background palette
       let minBgDist = 999;
       for (let s = 0; s < bgSamples.length; s++) {
         const [br, bg, bb] = bgSamples[s];
@@ -246,39 +251,166 @@ function buildAlphaWebpFromPng(pngPath: string, webpPath: string): { width: numb
         if (dist < minBgDist) minBgDist = dist;
       }
 
-      // Compute pixel luminance & saturation to protect dark outlines and rich character colors
       const maxC = Math.max(r, g, b);
       const minC = Math.min(r, g, b);
       const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
       const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
 
-      // Center subject protection (center of illustration stays solid & vibrant)
-      const centerProtect = 1.0 - smoothstep(0.14, 0.72, ellDist);
+      // Protect central character subject and dark ink outlines from being classified as outer background
+      const ellDist = Math.sqrt(nx * nx * 0.95 + ny * ny * 0.95);
+      const centerCoreProtect = 1.0 - smoothstep(0.10, 0.58, ellDist);
+      const isDarkInk = 1.0 - smoothstep(0.18, 0.42, lum);
+      const isRichPigment = smoothstep(0.28, 0.62, sat);
 
-      // High-contrast background similarity factor:
-      // Pale / low-saturation sky & parchment wall pixels become strongly translucent (alpha 0.08..0.30)
-      // so the 1960s kitsch motion-lamp backdrop colors glow vibrantly through them,
-      // while character ink lines and saturated colors stay crisp & opaque (alpha 0.95..1.0)!
-      const bgColorSimilarity = 1.0 - smoothstep(10, 68, minBgDist);
-      const isPaleBackdrop = smoothstep(0.46, 0.80, lum) * (1.0 - smoothstep(0.12, 0.48, sat));
-      const bgMatch = Math.max(bgColorSimilarity * smoothstep(0.38, 0.78, lum) * (1.0 - sat * 0.65), isPaleBackdrop * 0.85);
+      const colorMatch = 1.0 - smoothstep(14, 58, minBgDist);
+      const paleNeutralMatch = smoothstep(0.50, 0.84, lum) * (1.0 - smoothstep(0.10, 0.36, sat));
+      const rawBg = Math.max(colorMatch, paleNeutralMatch * 0.85) * (1.0 - isDarkInk * 0.95) * (1.0 - isRichPigment * centerCoreProtect * 0.85);
+      bgAffinity[p] = Math.max(0, Math.min(1, rawBg));
+    }
+  }
 
-      const rawBackdropAlpha = 1.0 - bgMatch * (0.92 - centerProtect * 0.30);
-      // Apply steep S-curve alpha contrast so foreground pops and backdrop lets the rotating kitsch-lamp WebP shine through,
-      // plus subtle translucency on bright highlight pigments so the figure itself lights up from behind!
-      const highlightWindow = smoothstep(0.58, 0.88, lum) * (1.0 - smoothstep(0.0, 0.35, 1.0 - lum)) * 0.28;
-      const highContrastAlpha = Math.max(0.08, smoothstep(0.14, 0.82, rawBackdropAlpha) - highlightWindow);
+  // Border-seeded BFS flood-fill so ONLY background connected to the outer perimeter becomes transparent (alpha = 0),
+  // while bright white/pale details INSIDE the figure (e.g. Wim's cat, Duif, Schapen, Zus's apron) stay solid!
+  const outerBgVisited = new Uint8Array(totalPixels);
+  const queue = new Int32Array(totalPixels);
+  let qHead = 0;
+  let qTail = 0;
 
-      // Boost color saturation (+42%) and warm midtone contrast on foreground character pixels
-      const fgStrength = smoothstep(0.25, 0.85, highContrastAlpha);
-      const satBoost = 1.0 + 0.44 * fgStrength;
+  const enqueueIfBg = (x: number, y: number, threshold: number) => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    const p = y * width + x;
+    if (outerBgVisited[p]) return;
+    if (bgAffinity[p] >= threshold) {
+      outerBgVisited[p] = 1;
+      queue[qTail++] = p;
+    }
+  };
+
+  // Seed outer 4px perimeter
+  for (let x = 0; x < width; x++) {
+    for (const y of [0, 1, 2, 3, height - 4, height - 3, height - 2, height - 1]) {
+      enqueueIfBg(x, y, 0.25);
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (const x of [0, 1, 2, 3, width - 4, width - 3, width - 2, width - 1]) {
+      enqueueIfBg(x, y, 0.25);
+    }
+  }
+
+  while (qHead < qTail) {
+    const curr = queue[qHead++];
+    const cx = curr % width;
+    const cy = (curr - cx) / width;
+    const cIdx = curr * 4;
+    const cr = rgbaBuf[cIdx];
+    const cg = rgbaBuf[cIdx + 1];
+    const cb = rgbaBuf[cIdx + 2];
+
+    const neighbors = [
+      [cx - 1, cy],
+      [cx + 1, cy],
+      [cx, cy - 1],
+      [cx, cy + 1]
+    ];
+    for (let i = 0; i < 4; i++) {
+      const nx = neighbors[i][0];
+      const ny = neighbors[i][1];
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      const np = ny * width + nx;
+      if (outerBgVisited[np]) continue;
+
+      const nIdx = np * 4;
+      const stepDist = Math.sqrt(
+        Math.pow(rgbaBuf[nIdx] - cr, 2) +
+        Math.pow(rgbaBuf[nIdx + 1] - cg, 2) +
+        Math.pow(rgbaBuf[nIdx + 2] - cb, 2)
+      );
+      // Flood continues if neighbor is similar to current background pixel and has background affinity
+      if (stepDist < 34 && bgAffinity[np] >= 0.34) {
+        outerBgVisited[np] = 1;
+        queue[qTail++] = np;
+      }
+    }
+  }
+
+  // Compute feathered foreground silhouette mask (3px spatial box-blur feather on (1 - outerBgVisited))
+  const fgMaskRaw = new Float32Array(totalPixels);
+  for (let y = 0; y < height; y++) {
+    const ny = (y - height * 0.5) / (height * 0.5);
+    for (let x = 0; x < width; x++) {
+      const nx = (x - width * 0.5) / (width * 0.5);
+      const p = y * width + x;
+      // Soft outer oval vignette at very edge of tile so even non-flooded ground corners taper smoothly to 0
+      const ellDist = Math.sqrt(nx * nx * 0.92 + ny * ny * 0.96);
+      const sqDist = Math.pow(Math.pow(Math.abs(nx), 3.4) + Math.pow(Math.abs(ny), 3.4), 1 / 3.4);
+      const radialDist = ellDist * 0.65 + sqDist * 0.35;
+      const borderVignette = 1.0 - smoothstep(0.76, 0.97, radialDist);
+
+      const isFg = outerBgVisited[p] ? 0.0 : 1.0;
+      fgMaskRaw[p] = isFg * borderVignette;
+    }
+  }
+
+  // 5x5 spatial feather pass for smooth anti-aliased cut-out edges
+  const fgMaskSmooth = new Float32Array(totalPixels);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0;
+      let count = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        const sy = y + dy;
+        if (sy < 0 || sy >= height) continue;
+        for (let dx = -2; dx <= 2; dx++) {
+          const sx = x + dx;
+          if (sx < 0 || sx >= width) continue;
+          sum += fgMaskRaw[sy * width + sx];
+          count++;
+        }
+      }
+      fgMaskSmooth[y * width + x] = sum / count;
+    }
+  }
+
+  // Apply 1960s Econolite Lithograph Alpha Architecture:
+  // - Background (sky, fence, wall, ground around the figure): 100% OPAQUE (alpha = 255) -> ZERO background lamp effect!
+  // - Dark Cornelis Jetses ink outlines: 100% OPAQUE (alpha = 255) -> razor-sharp drawing!
+  // - ONLY the central figure's painted colors & highlights (fgMaskSmooth > 0):
+  //   translucent 1960s lithograph light-windows (alpha = 0.46 .. 0.84) so the rotating
+  //   rippled waterfall/ember cylinder (`lamp_<word>.webp`) behind the image actively lights up ONLY the figure!
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const p = y * width + x;
+      const idx = p * 4;
+      const r = rgbaBuf[idx];
+      const g = rgbaBuf[idx + 1];
+      const b = rgbaBuf[idx + 2];
+
+      // How strongly this pixel belongs to the central figure vs. the outer background
+      const figureWeight = smoothstep(0.15, 0.85, fgMaskSmooth[p]);
+
+      const maxC = Math.max(r, g, b);
+      const minC = Math.min(r, g, b);
+      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      const sat = maxC === 0 ? 0 : (maxC - minC) / maxC;
+
+      // Protect dark ink lines (lum < 0.28 stays alpha = 1.0)
+      const notDarkInk = smoothstep(0.20, 0.42, lum);
+      // Active pigment / highlight factor on the figure (colored fur/clothes/fire/foliage + warm highlights)
+      const pigmentActivity = Math.min(1.0, sat * 1.35 + smoothstep(0.45, 0.88, lum) * 0.65);
+
+      // Light-window translucency exists ONLY on the figure (figureWeight), NEVER on the background!
+      const lightWindowTranslucency = figureWeight * notDarkInk * (0.22 + 0.34 * pigmentActivity);
+      const finalAlphaFloat = Math.max(0.44, Math.min(1.0, 1.0 - lightWindowTranslucency));
+
+      // Enrich color saturation (+34%) on the figure while keeping background calm & natural
+      const satBoost = 1.0 + 0.34 * figureWeight;
       const gray = r * 0.299 + g * 0.587 + b * 0.114;
       let nr = gray + (r - gray) * satBoost;
       let ng = gray + (g - gray) * satBoost;
       let nb = gray + (b - gray) * satBoost;
 
-      // Subtle S-curve contrast around mid-luminance (128) for richer pigment depth
-      const contrast = 1.0 + 0.16 * fgStrength;
+      const contrast = 1.0 + 0.10 * figureWeight;
       nr = (nr - 128) * contrast + 128;
       ng = (ng - 128) * contrast + 128;
       nb = (nb - 128) * contrast + 128;
@@ -286,9 +418,7 @@ function buildAlphaWebpFromPng(pngPath: string, webpPath: string): { width: numb
       rgbaBuf[idx] = Math.max(0, Math.min(255, Math.round(nr)));
       rgbaBuf[idx + 1] = Math.max(0, Math.min(255, Math.round(ng)));
       rgbaBuf[idx + 2] = Math.max(0, Math.min(255, Math.round(nb)));
-
-      const finalAlpha = Math.round(Math.max(0, Math.min(1, edgeAlpha * highContrastAlpha)) * 255);
-      rgbaBuf[idx + 3] = finalAlpha;
+      rgbaBuf[idx + 3] = Math.round(finalAlphaFloat * 255);
     }
   }
 

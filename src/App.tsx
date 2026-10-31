@@ -770,33 +770,32 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   const seedB = ((wordHash * 7) % 100) / 100;
   const seedC = ((wordHash * 13) % 100) / 100;
 
-  // 1960s Rotating Kitsch-Lamp Wheel WebP (rotates behind the 100% stationary figure WebP!)
+  // 1960s Econolite Motion-Lamp Rippled Cylinder WebP:
+  // Strictly masked to the figure silhouette so ONLY the figure itself is subtly, actively lit,
+  // with ZERO background effect outside the figure!
   const lampPrimary = anmFigure?.lampPrimaryHex || primaryStroke;
   const lampSecondary = anmFigure?.lampSecondaryHex || secondaryStroke;
   const lampWarmth = anmFigure?.lampWarmthHex || accentColor;
   const rotDirection = wordHash % 2 === 0 ? 1 : -1;
-  const wheelDegPerSec = (18 + seedA * 20) * (1 + (isHovered ? 0.35 : 0) + goldenEvolution * 0.25);
+  // Calm, authentic 1960s convection heat-cylinder rotation speed (11..20 deg/sec)
+  const wheelDegPerSec = (11 + seedA * 9) * (1 + (isHovered ? 0.25 : 0) + goldenEvolution * 0.20);
   const lampWheelAngle1 = (rotDirection * animTick * wheelDegPerSec + seedB * 360) % 360;
-  const lampWheelAngle2 = (-rotDirection * animTick * (wheelDegPerSec * 0.62) + seedC * 360) % 360;
-  const wheelDiameter = Math.round(Math.hypot(imgW, imgH) * 1.18);
+  const lampWheelAngle2 = (-rotDirection * animTick * (wheelDegPerSec * 0.58) + seedC * 360) % 360;
+  const wheelDiameter = Math.round(Math.hypot(imgW, imgH) * 1.15);
   const wheelHalf = wheelDiameter / 2;
-  const colorSatValue = (1.22 + effectiveAliveness * 0.22 + goldenEvolution * 0.35 + (isHovered ? 0.22 : 0)).toFixed(2);
+  const colorSatValue = (1.14 + effectiveAliveness * 0.14 + goldenEvolution * 0.22 + (isHovered ? 0.14 : 0)).toFixed(2);
 
   return (
     <svg
       viewBox="0 0 200 136"
       className="w-full h-full pointer-events-none select-none overflow-hidden"
       style={{
-        opacity: Math.min(0.99, (showCutoutImage ? 0.92 : 0.45) + effectiveAliveness * 0.08),
+        opacity: Math.min(0.99, (showCutoutImage ? 0.96 : 0.45) + effectiveAliveness * 0.04),
         transition: 'opacity 0.2s linear'
       }}
     >
       <defs>
-        <radialGradient id={`glow-${w}`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={lampPrimary} stopOpacity={0.34 * fillProgress + goldenEvolution * 0.28} />
-          <stop offset="100%" stopColor={lampPrimary} stopOpacity={0} />
-        </radialGradient>
-        {showCutoutImage && (
+        {showCutoutImage && anmFigure && (
           <>
             <clipPath id={`anm-clip-${w}`}>
               <rect x={imgX} y={imgY} width={imgW} height={imgH} rx="14" ry="14" />
@@ -804,61 +803,47 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
             <filter id={`anm-sat-${w}`} x="-5%" y="-5%" width="110%" height="110%">
               <feColorMatrix type="saturate" values={colorSatValue} />
             </filter>
-            <linearGradient
-              id={`lamp-warm-back-${w}`}
-              x1={`${Math.round(seedA * 100)}%`}
-              y1="100%"
-              x2={`${Math.round((1 - seedB) * 100)}%`}
-              y2="0%"
-            >
-              <stop offset="0%" stopColor={lampPrimary} stopOpacity="0.52" />
-              <stop offset="50%" stopColor={lampWarmth} stopOpacity="0.28" />
-              <stop offset="100%" stopColor={lampSecondary} stopOpacity="0.50" />
-            </linearGradient>
           </>
         )}
       </defs>
 
-      {/* Ambient Aura */}
-      <ellipse cx="100" cy="68" rx={76 * pulse} ry={48 * pulse} fill={`url(#glow-${w})`} />
-
-      {/* LAYER 1: ROTATING 1960s KITSCH-LAMP WEBP WHEEL -> LAYER 2: 100% STATIONARY FIGURE WEBP ON TOP */}
+      {/* 1960s ECONOLITE FIGURE-ONLY MOTION LAMP:
+          - Background of `<word>.webp` is 100% opaque (alpha = 1.0) -> ZERO background motion or clutter!
+          - Dark ink outlines of `<word>.webp` are 100% opaque (alpha = 1.0) -> crisp Cornelis Jetses line art!
+          - ONLY the figure's painted colors & highlights have translucent 1960s lithograph windows (alpha = 0.44..0.84),
+            so the rotating rippled waterfall/ember cylinder (`lamp_<word>.webp`) behind the image actively lights up ONLY the figure! */}
       {showCutoutImage && anmFigure && (
         <g transform="translate(100, 68)">
-          <g
-            clipPath={`url(#anm-clip-${w})`}
-            opacity={Math.min(1, 0.92 + effectiveAliveness * 0.08)}
-          >
-            {/* 1960s Kitsch Lamp Base Chamber */}
-            <rect x={imgX} y={imgY} width={imgW} height={imgH} fill={`url(#lamp-warm-back-${w})`} />
+          <g clipPath={`url(#anm-clip-${w})`}>
+            {/* 1. Calm dark inner lamp housing behind the figure's translucent pigment windows */}
+            <rect x={imgX} y={imgY} width={imgW} height={imgH} fill="#1c1917" />
 
-            {/* Dedicated Rotating 1960s Kitsch-Lamp Color-Wheel WebP (Rotates behind the stationary figure!) */}
+            {/* 2. Rotating 1960s Econolite Rippled Waterfall/Ember Cylinder strictly behind the central figure */}
             {anmFigure.lampWebpDataUri && (
-              <g opacity={Math.min(0.98, 0.78 + effectiveAliveness * 0.14 + goldenEvolution * 0.12)}>
+              <g opacity={Math.min(0.95, 0.76 + effectiveAliveness * 0.12 + goldenEvolution * 0.12)}>
                 <image
                   href={anmFigure.lampWebpDataUri}
-                  x={-wheelHalf}
-                  y={-wheelHalf}
-                  width={wheelDiameter}
-                  height={wheelDiameter}
+                  x={-wheelHalf * 0.84}
+                  y={-wheelHalf * 0.84}
+                  width={wheelDiameter * 0.84}
+                  height={wheelDiameter * 0.84}
                   preserveAspectRatio="none"
                   transform={`rotate(${lampWheelAngle1.toFixed(1)})`}
                 />
-                {/* Second subtle counter-rotating prismatic interference wheel for authentic 1960s Econolite shimmer */}
                 <image
                   href={anmFigure.lampWebpDataUri}
-                  x={-wheelHalf * 0.92}
-                  y={-wheelHalf * 0.92}
-                  width={wheelDiameter * 0.92}
-                  height={wheelDiameter * 0.92}
+                  x={-wheelHalf * 0.76}
+                  y={-wheelHalf * 0.76}
+                  width={wheelDiameter * 0.76}
+                  height={wheelDiameter * 0.76}
                   preserveAspectRatio="none"
-                  opacity="0.46"
+                  opacity="0.48"
                   transform={`rotate(${lampWheelAngle2.toFixed(1)})`}
                 />
               </g>
             )}
 
-            {/* 100% Stationary Alpha-Channel WebP Character Cut-Out on Top (Lit from behind by the rotating kitsch-lamp WebP!) */}
+            {/* 3. 100% Stationary `<word>.webp` on top (Opaque background blocks all peripheral light; translucent figure pigments glow!) */}
             <image
               href={anmFigure.webpDataUri || anmFigure.dataUri}
               x={imgX}
@@ -870,7 +855,7 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
             />
           </g>
 
-          {/* Self-Drawing Ligne-Claire Montessori Frame around Cut-Out Figure */}
+          {/* Subtle Montessori Picture Frame */}
           <rect
             x={imgX}
             y={imgY}
@@ -880,19 +865,8 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
             ry="14"
             fill="none"
             stroke={primaryStroke}
-            strokeWidth={1.9 + goldenEvolution * 1.3}
-            strokeDasharray="440"
-            strokeDashoffset={frameDashOffset}
-          />
-
-          {/* Vintage Leesplankje Corner Brackets */}
-          <path
-            d={`M ${imgX - 4} ${imgY + 14} L ${imgX - 4} ${imgY - 4} L ${imgX + 14} ${imgY - 4} M ${imgX + imgW - 14} ${imgY - 4} L ${imgX + imgW + 4} ${imgY - 4} L ${imgX + imgW + 4} ${imgY + 14} M ${imgX - 4} ${imgY + imgH - 14} L ${imgX - 4} ${imgY + imgH + 4} L ${imgX + 14} ${imgY + imgH + 4} M ${imgX + imgW - 14} ${imgY + imgH + 4} L ${imgX + imgW + 4} ${imgY + imgH + 4} L ${imgX + imgW + 4} ${imgY + imgH - 14}`}
-            fill="none"
-            stroke={secondaryStroke}
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            opacity={fillProgress * 0.85}
+            strokeWidth={1.6 + goldenEvolution * 1.2}
+            strokeOpacity="0.65"
           />
         </g>
       )}
