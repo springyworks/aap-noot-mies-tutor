@@ -1,0 +1,32 @@
+{
+  "name": "rt-tutor-brain-rocket",
+  "private": true,
+  "version": "2.0.0",
+  "description": "RT Tutor: Brain-Rocket Edition — Real-Time Cognitive Scaffolding, 2D-FFT Telemetry & Animated Aap-Noot-Mies SVG Reading Environment",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "transponder": "npx tsx server/mcp_transponder.ts",
+    "transponder:stdio": "npx tsx server/mcp_transponder.ts --stdio",
+    "exercise": "npx tsx scripts/playwright_exerciser.ts",
+    "slice:aapnootmies": "python3 scripts/slice_aapnootmies.py",
+    "bundle:standalone": "python3 scripts/build_standalone.py"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.2",
+    "vite": "^5.3.1"
+  }
+}
+

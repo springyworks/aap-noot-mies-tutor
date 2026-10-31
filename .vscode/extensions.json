@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "ms-edgedevtools.vscode-edge-devtools",
+    "ms-playwright.playwright",
+    "bradlc.vscode-tailwindcss"
+  ]
+}

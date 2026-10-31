@@ -1,0 +1,57 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Channel 1: Debug TypeScript MCP Transponder (:3001)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx"],
+      "program": "${workspaceFolder}/server/mcp_transponder.ts",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Channel 2: Run Playwright & MCP Exerciser",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx"],
+      "program": "${workspaceFolder}/scripts/playwright_exerciser.ts",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Channel 3: Launch Microsoft Edge + Edge DevTools (:3001)",
+      "type": "pwa-msedge",
+      "request": "launch",
+      "url": "http://localhost:3001",
+      "webRoot": "${workspaceFolder}",
+      "runtimeArgs": ["--remote-debugging-port=9222"]
+    },
+    {
+      "name": "Channel 3: Open Embedded Edge DevTools Panel (:3001)",
+      "type": "vscode-edge-devtools.debug",
+      "request": "launch",
+      "url": "http://localhost:3001",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "Channel 3: Attach Edge/Chrome Debugger (Port 9222)",
+      "type": "pwa-msedge",
+      "request": "attach",
+      "port": 9222,
+      "url": "http://localhost:3001*",
+      "webRoot": "${workspaceFolder}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 All Channels: MCP Transponder + Microsoft Edge DevTools",
+      "configurations": [
+        "Channel 1: Debug TypeScript MCP Transponder (:3001)",
+        "Channel 3: Open Embedded Edge DevTools Panel (:3001)"
+      ]
+    }
+  ]
+}

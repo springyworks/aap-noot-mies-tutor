@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "rt-tutor-transponder": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/dist/mcp_transponder.mjs",
+        "--stdio"
+      ],
+      "env": {
+        "PORT": "3001"
+      }
+    }
+  }
+}

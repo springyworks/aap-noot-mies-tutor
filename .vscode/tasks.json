@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start TypeScript MCP Transponder (:3001)",
+      "type": "shell",
+      "command": "npx tsx server/mcp_transponder.ts",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Channel 2 Playwright/MCP Exerciser",
+      "type": "shell",
+      "command": "npx tsx scripts/playwright_exerciser.ts",
+      "problemMatcher": []
+    },
+    {
+      "label": "Rebuild Standalone App Bundle (esbuild)",
+      "type": "shell",
+      "command": "python3 scripts/build_standalone.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "Slice 17 Aap-Noot-Mies Figures",
+      "type": "shell",
+      "command": "python3 scripts/slice_aapnootmies.py",
+      "problemMatcher": []
+    }
+  ]
+}

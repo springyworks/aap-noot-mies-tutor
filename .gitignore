@@ -1,0 +1,6 @@
+node_modules/
+telemetry_logs/
+.DS_Store
+*.log
+playwright-report/
+test-results/
