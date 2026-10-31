@@ -116,6 +116,12 @@ ${jsCode}
   const outHtml = path.join(DIST_DIR, 'rt_tutor_app.html');
   fs.writeFileSync(outHtml, html, 'utf-8');
 
+  // Also write to docs/index.html + docs/.nojekyll for direct GitHub Pages (github.io) hosting!
+  const docsDir = path.join(WORKSPACE_ROOT, 'docs');
+  fs.mkdirSync(docsDir, { recursive: true });
+  fs.writeFileSync(path.join(docsDir, 'index.html'), html, 'utf-8');
+  fs.writeFileSync(path.join(docsDir, '.nojekyll'), '', 'utf-8');
+
   const nodeTargets: readonly BuildTarget[] = [
     { inputPath: 'server/mcp_transponder.ts', outputPath: 'dist/mcp_transponder.mjs' },
     { inputPath: 'scripts/playwright_exerciser.ts', outputPath: 'dist/playwright_exerciser.mjs' }

@@ -2053,23 +2053,15 @@ const TutorAvatarHeader: React.FC<TutorAvatarProps> = ({
             <span className="text-[11px] sm:text-xs font-bold tracking-wide text-slate-200">
               {isSilent
                 ? (language === 'nl' ? 'Stille Wachtstand' : 'Silent Standby')
-                : (language === 'nl' ? meta.labelNL : meta.labelEN)}
+                : (language === 'nl' ? meta.labelNL.replace(/^\d+\.\s*/, '') : meta.labelEN.replace(/^\d+\.\s*/, ''))}
             </span>
           </div>
-          <span className="text-[10px] font-mono text-slate-400">
+          <span className="hidden sm:inline text-[10px] font-mono text-slate-400">
             {isSilent
-              ? (language === 'nl' ? 'Beweeg om te wekken' : 'Move to wake')
-              : (language === 'nl' ? `Figuurtjes: ${Math.round(aliveness * 100)}% (18/18 Positief)` : `Figures: ${Math.round(aliveness * 100)}% (18/18 Positive)`)}
+              ? (language === 'nl' ? 'Tik of beweeg' : 'Tap or move')
+              : (language === 'nl' ? 'Lieve begeleiding actief' : 'Sweet guidance active')}
           </span>
         </div>
-      </button>
-
-      <button
-        onClick={onCycleExpression}
-        title={language === 'nl' ? 'Blader door alle 18 niet-boze tutor-expressies' : 'Cycle through all 18 non-angry expressions'}
-        className="ml-1 px-2 py-1 bg-slate-900 hover:bg-slate-700 text-[10px] font-mono text-amber-300 rounded-lg border border-slate-700 transition-colors"
-      >
-        🎭 {meta.idx}/18
       </button>
     </div>
   );
@@ -2083,12 +2075,13 @@ export default function RTTutor() {
   // Core Persistent States
   const [started, setStarted] = useState<boolean>(false);
   const [curriculumMode, setCurriculumMode] = useState<CurriculumMode>(
-    () => (localStorage.getItem('tutor_curriculum') as CurriculumMode) || 'standard'
+    () => (localStorage.getItem('tutor_curriculum') as CurriculumMode) || 'aapnootmies'
   );
-  const [level, setLevel] = useState<number>(() => parseInt(localStorage.getItem('tutor_level') || '0', 10) || 0);
+  const [level, setLevel] = useState<number>(() => parseInt(localStorage.getItem('tutor_level') || '1', 10) || 1);
   const [language, setLanguage] = useState<LanguageCode>(() => (localStorage.getItem('tutor_lang') as LanguageCode) || 'nl');
   const [autoLevel, setAutoLevel] = useState<boolean>(true);
   const [inspectMode, setInspectMode] = useState<boolean>(false);
+  const [showDevTools, setShowDevTools] = useState<boolean>(false);
 
   // Usability Research Pinhole Spotlight State
   const [pinholeEnabled, setPinholeEnabled] = useState<boolean>(false);
@@ -2759,8 +2752,9 @@ export default function RTTutor() {
         // Ignore storage quota warnings
       }
 
-      // 5. STREAM HARD DATA & 2D-FFT TO LOCAL TYPESCRIPT MCP TRANSPONDER (:3001)
-      if (now - lastMcpPushRef.current > 1200) {
+      // 5. STREAM HARD DATA & 2D-FFT TO LOCAL TYPESCRIPT MCP TRANSPONDER (:3001) WHEN ON LOCALHOST
+      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (isLocalHost && now - lastMcpPushRef.current > 1200) {
         lastMcpPushRef.current = now;
         fetch('http://localhost:3001/api/telemetry', {
           method: 'POST',
@@ -3223,6 +3217,9 @@ export default function RTTutor() {
         case 'trigger_drill_through':
           triggerDrillThroughCapture('MCP_REMOTE_TRIGGER', Boolean(p.openModal));
           break;
+        case 'reload_page':
+          if (typeof window !== 'undefined') window.location.reload();
+          break;
         case 'augment_learning_play': {
           const nextHintMult = typeof p.hintThrottleMultiplier === 'number'
             ? Math.max(0.3, Math.min(2.5, p.hintThrottleMultiplier))
@@ -3298,6 +3295,8 @@ export default function RTTutor() {
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+    const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isLocalHost) return;
     let es: EventSource | null = null;
     try {
       es = new EventSource('http://localhost:3001/api/events');
@@ -3813,8 +3812,8 @@ export default function RTTutor() {
 
   if (!started) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-6 overscroll-none select-none">
-        <div className="mb-6">
+      <div className="min-h-[100dvh] bg-slate-900 text-slate-100 flex flex-col items-center justify-center font-sans p-5 overscroll-none select-none">
+        <div className="mb-5">
           <TutorAvatarHeader
             emotion="ROCKET_LAUNCH"
             isSilent={false}
@@ -3824,34 +3823,23 @@ export default function RTTutor() {
             onCycleExpression={() => {}}
           />
         </div>
-        <h1 className="text-4xl sm:text-5xl font-bold mb-3 text-blue-400 tracking-wide text-center">
-          RT Tutor — Brein-Raket Editie 🚀
+        <h1 className="text-3xl sm:text-5xl font-bold mb-2 text-amber-300 tracking-wide text-center">
+          🪵 Aap · Noot · Mies
         </h1>
-        <p className="text-sm sm:text-base text-amber-300/90 font-mono mb-4 text-center max-w-xl">
+        <p className="text-xs sm:text-base text-slate-300 mb-6 max-w-md text-center leading-relaxed">
           {language === 'nl'
-            ? '"Lesgeven is een raket lanceren in het brein: het brein bouwt een model, vergeet de ruis en bewaart de goede modellen voor altijd."'
-            : '"Teaching is launching a rocket inside your brain: your brain builds a model, forgets the noise, and keeps the good ones long-term."'}
+            ? 'Speels leren lezen met het klassieke Nederlandse leesplankje, levende figuurtjes en een lieve stem.'
+            : 'Playful reading with the classic Dutch reading board, living figures and a warm voice.'}
         </p>
-        <p className="text-sm sm:text-base text-slate-400 mb-8 max-w-lg text-center leading-relaxed">
-          {language === 'nl'
-            ? 'Met 18 positieve expressies (nooit boos!), ontwikkelende lijntekeningetjes bij hover in de Gouden Cel, het klassieke Aap-Noot-Mies leesplankje, Pinhole eye-tracking lens en live 2D-FFT spectrale telemetrie.'
-            : 'Featuring 18 positive expressions (never angry!), evolving line-art figures on Golden Cell hover, classic Aap-Noot-Mies curriculum tab, Pinhole focus lens, and live 2D-FFT spectral telemetry.'}
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="flex flex-col sm:flex-row gap-3 items-center w-full max-w-xs sm:max-w-md justify-center">
           <button
             onClick={() => {
               initAudio();
               setStarted(true);
             }}
-            className="px-10 py-5 bg-blue-600 hover:bg-blue-500 rounded-2xl text-xl sm:text-2xl font-bold shadow-lg shadow-blue-900/50 transition-all hover:scale-105 active:scale-95"
+            className="w-full sm:w-auto px-10 py-4 sm:py-5 bg-amber-600 hover:bg-amber-500 rounded-2xl text-xl sm:text-2xl font-bold text-white shadow-lg shadow-amber-900/50 transition-all hover:scale-105 active:scale-95"
           >
-            🚀 Start Brein-Raket Engine
-          </button>
-          <button
-            onClick={exportStandaloneHtml}
-            className="px-6 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl text-sm font-mono font-bold text-amber-300 shadow-lg transition-all"
-          >
-            📦 Export Standalone .HTML (Voor Telefoon/GitHub)
+            🪵 Start Leesplankje
           </button>
         </div>
       </div>
@@ -3934,196 +3922,195 @@ export default function RTTutor() {
       {/* ==================================================================== */}
       {/* TOP BAR: Curriculum Tabs, Pinhole, 18-Emotion Avatar & JSON Exports  */}
       {/* ==================================================================== */}
-      <header className="relative z-40 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 pt-3 pb-2">
-        {/* Left Controls: Level, Curriculum Tab (Levels vs Aap Noot Mies), Lang, Kinetic, Pinhole, Introspect */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <div className="flex bg-slate-800 rounded-lg p-0.5 sm:p-1 border border-slate-700 shadow-xl">
-            <button
-              onClick={() => changeLevel(-1)}
-              className="px-2 sm:px-3 py-1.5 hover:bg-slate-700 text-slate-300 rounded transition-colors"
-            >
-              ◀
-            </button>
-            <div className="px-2.5 sm:px-3.5 py-1.5 font-mono font-bold text-sm sm:text-lg text-blue-400 bg-slate-900 rounded flex items-center">
-              {curriculumMode === 'aapnootmies' ? 'ANM' : `L${level}`}
+      <header className="relative z-40 flex flex-col gap-1.5 px-2.5 sm:px-4 pt-2 sm:pt-3 pb-1">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+          {/* Essential Player Controls (Fits cleanly on phones!) */}
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+            <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow">
+              <button
+                onClick={() => changeLevel(-1)}
+                className="px-2 py-1 hover:bg-slate-700 text-slate-300 rounded text-xs sm:text-sm transition-colors"
+              >
+                ◀
+              </button>
+              <div className="px-2 sm:px-3 py-1 font-mono font-bold text-xs sm:text-base text-amber-300 bg-slate-900 rounded flex items-center">
+                {curriculumMode === 'aapnootmies' ? 'ANM' : `L${level}`}
+              </div>
+              <button
+                onClick={() => changeLevel(1)}
+                className="px-2 py-1 hover:bg-slate-700 text-slate-300 rounded text-xs sm:text-sm transition-colors"
+              >
+                ▶
+              </button>
             </div>
+
+            {/* Curriculum Switcher: Aap Noot Mies vs. L0-L5 */}
+            <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow">
+              <button
+                onClick={() => switchCurriculumMode('aapnootmies')}
+                className={`px-2 sm:px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                  curriculumMode === 'aapnootmies'
+                    ? 'bg-amber-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                🪵 Aap-Noot
+              </button>
+              <button
+                onClick={() => switchCurriculumMode('standard')}
+                className={`px-2 sm:px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                  curriculumMode === 'standard'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📚 L0-L5
+              </button>
+            </div>
+
             <button
-              onClick={() => changeLevel(1)}
-              className="px-2 sm:px-3 py-1.5 hover:bg-slate-700 text-slate-300 rounded transition-colors"
+              onClick={() => setShowLeesplankModal(true)}
+              title="Bekijk alle 17 Aap-Noot-Mies figuren op het leesplankje"
+              className="px-2 sm:px-2.5 py-1.5 bg-amber-900/50 hover:bg-amber-800/70 border border-amber-500/50 rounded-lg font-bold text-xs text-amber-100 transition-colors shadow"
             >
-              ▶
+              🪵 17 Plaatjes
+            </button>
+
+            <button
+              onClick={toggleLanguage}
+              className="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-bold text-xs text-slate-200 transition-colors shadow"
+            >
+              {language.toUpperCase()}
             </button>
           </div>
 
-          {/* Tabbed Curriculum Switcher: Standard Levels vs. Dutch "Aap Noot Mies" */}
-          <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow">
+          {/* Right: Friendly Tutor Avatar + Streak + Subtle Dev Tools Toggle */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <TutorAvatarHeader
+              emotion={tutorEmotion}
+              isSilent={isVoiceSilent}
+              aliveness={aliveness}
+              language={language}
+              onClickAvatar={triggerManualIntrospection}
+              onCycleExpression={cycleTutorExpression}
+            />
+            {streak > 0 && (
+              <span className="px-2 py-1 rounded-lg bg-amber-950/80 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs">
+                ⭐ {streak}
+              </span>
+            )}
             <button
-              onClick={() => switchCurriculumMode('standard')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                curriculumMode === 'standard'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+              onClick={() => setShowDevTools(!showDevTools)}
+              title="Ontwikkelaars- & Telemetrie-opties tonen/verbergen"
+              className={`px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
+                showDevTools
+                  ? 'bg-purple-900/80 border-purple-400 text-purple-100'
+                  : 'bg-slate-800/70 border-slate-700/70 text-slate-400 hover:text-slate-200'
               }`}
             >
-              📚 L0-L5
-            </button>
-            <button
-              onClick={() => switchCurriculumMode('aapnootmies')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                curriculumMode === 'aapnootmies'
-                  ? 'bg-amber-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              🇳🇱 Aap Noot Mies
+              🛠️
             </button>
           </div>
-
-          <button
-            onClick={() => {
-              const order: AnmFigureMode[] = ['hybrid', 'photo', 'vector'];
-              const next = order[(order.indexOf(anmFigureMode) + 1) % order.length];
-              setAnmFigureMode(next);
-            }}
-            title="Wissel tussen uitgeknipte Leesplank-figuurtjes + Ligne-Claire SVG, enkel Foto-SVG, of Lijn-SVG"
-            className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-amber-500/40 rounded-lg font-bold text-xs text-amber-200 transition-colors shadow"
-          >
-            🖼️ Figuur: {anmFigureMode === 'hybrid' ? 'Foto+SVG' : anmFigureMode === 'photo' ? 'Foto' : 'Lijn-SVG'}
-          </button>
-
-          <button
-            onClick={() => setShowLeesplankModal(true)}
-            title="Bekijk alle 17 uitgeknipte Aap-Noot-Mies figuren op het interactieve leesplankje"
-            className="px-2.5 py-2 bg-amber-900/50 hover:bg-amber-800/70 border border-amber-500/50 rounded-lg font-bold text-xs text-amber-100 transition-colors shadow"
-          >
-            🪵 Plankje (17)
-          </button>
-
-          <button
-            onClick={toggleLanguage}
-            className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-bold text-xs text-slate-200 transition-colors shadow"
-          >
-            {language.toUpperCase()}
-          </button>
-
-          <button
-            onClick={() => {
-              const next = !kineticMode;
-              setKineticMode(next);
-              setTutorEmotion(next ? 'PLAYFUL' : 'SERENE');
-            }}
-            className={`px-2.5 py-2 rounded-lg font-bold text-xs tracking-wide border transition-all shadow ${
-              kineticMode
-                ? 'bg-purple-900/60 border-purple-400/60 text-purple-200'
-                : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
-            }`}
-          >
-            🎯 2D Kinetic: {kineticMode ? 'ON' : 'OFF'}
-          </button>
-
-          {/* Usability Research Focus Pinhole Toggle */}
-          <button
-            onClick={() => setPinholeEnabled(!pinholeEnabled)}
-            title="Focus Pinhole Overlay voor oog-/muis-aandacht onderzoek"
-            className={`px-2.5 py-2 rounded-lg font-bold text-xs tracking-wide border transition-all shadow ${
-              pinholeEnabled
-                ? 'bg-amber-900/70 border-amber-400 text-amber-200'
-                : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
-            }`}
-          >
-            🔦 Pinhole: {pinholeEnabled ? 'ON' : 'OFF'}
-          </button>
-
-          <button
-            onClick={cycleIntrospectionLevel}
-            className="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-mono font-bold text-xs text-amber-300 transition-colors shadow"
-          >
-            🧠 Introspect: L{introspectionLevel}
-          </button>
         </div>
 
-        {/* Center: 18-Expression SVG Tutor Avatar & Silence Indicator */}
-        <TutorAvatarHeader
-          emotion={tutorEmotion}
-          isSilent={isVoiceSilent}
-          aliveness={aliveness}
-          language={language}
-          onClickAvatar={triggerManualIntrospection}
-          onCycleExpression={cycleTutorExpression}
-        />
+        {/* Collapsible Developer & Telemetry Toolbar (Hidden by default on phones!) */}
+        {showDevTools && (
+          <div className="flex flex-wrap items-center justify-between gap-1.5 p-2 rounded-xl bg-slate-950/90 border border-slate-700/80 text-xs shadow-xl">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => {
+                  const order: AnmFigureMode[] = ['hybrid', 'photo', 'vector'];
+                  const next = order[(order.indexOf(anmFigureMode) + 1) % order.length];
+                  setAnmFigureMode(next);
+                }}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-amber-500/40 rounded-lg font-bold text-[11px] text-amber-200"
+              >
+                🖼️ {anmFigureMode}
+              </button>
+              <button
+                onClick={cycleTutorExpression}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-mono text-[11px] text-amber-300"
+              >
+                🎭 18 Expr
+              </button>
+              <button
+                onClick={() => {
+                  const next = !kineticMode;
+                  setKineticMode(next);
+                  setTutorEmotion(next ? 'PLAYFUL' : 'SERENE');
+                }}
+                className={`px-2 py-1 rounded-lg font-bold text-[11px] border ${
+                  kineticMode
+                    ? 'bg-purple-900/60 border-purple-400/60 text-purple-200'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                🎯 Kinetic: {kineticMode ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={() => setPinholeEnabled(!pinholeEnabled)}
+                className={`px-2 py-1 rounded-lg font-bold text-[11px] border ${
+                  pinholeEnabled
+                    ? 'bg-amber-900/70 border-amber-400 text-amber-200'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                🔦 Pinhole: {pinholeEnabled ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={cycleIntrospectionLevel}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg font-mono font-bold text-[11px] text-amber-300"
+              >
+                🧠 L{introspectionLevel}
+              </button>
+            </div>
 
-        {/* Right Controls: Permanently Visible JSON Download, Inspect & Standalone HTML Export */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <button
-            onClick={downloadJsonFile}
-            className="px-2.5 sm:px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold font-mono text-white shadow-lg transition-colors flex items-center gap-1"
-          >
-            💾 Download .JSON
-          </button>
-          <button
-            onClick={() => triggerDrillThroughCapture('UI_BUTTON', true)}
-            title="Ctrl+Shift+Alt+G: Drill-Through Context Auto-Copy & Push naar MCP Channel Buffer (:3001)"
-            className="px-2.5 sm:px-3 py-2 bg-purple-700 hover:bg-purple-600 border border-purple-400/60 rounded-xl text-xs font-bold font-mono text-white shadow-lg transition-colors flex items-center gap-1"
-          >
-            🎯 Ctrl+Shift+Alt+G
-          </button>
-          <button
-            onClick={generateJsonDump}
-            className="px-2.5 sm:px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold font-mono text-white shadow-lg transition-colors flex items-center gap-1"
-          >
-            📋 Inspect JSON
-          </button>
-          <button
-            onClick={exportStandaloneHtml}
-            title="Download zelfstandig HTML-bestand voor elke telefoon of GitHub Pages"
-            className="px-2.5 sm:px-3 py-2 bg-amber-700/80 hover:bg-amber-600 rounded-xl text-xs font-bold font-mono text-amber-100 shadow-lg transition-colors flex items-center gap-1"
-          >
-            📦 Export HTML
-          </button>
-
-          <button
-            onClick={() => {
-              const payload = getTelemetryPayload();
-              fetch('http://localhost:3001/api/telemetry', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              })
-                .then(r => setMcpConnected(r.ok))
-                .catch(() => setMcpConnected(false));
-            }}
-            title="TypeScript MCP Transponder Status (http://localhost:3001)"
-            className={`px-2.5 py-2 rounded-xl text-xs font-bold font-mono border shadow-lg transition-colors flex items-center gap-1.5 ${
-              mcpConnected
-                ? 'bg-emerald-950/90 border-emerald-500 text-emerald-300'
-                : 'bg-slate-800 border-slate-700 text-slate-400'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${mcpConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-            {mcpConnected ? 'MCP :3001' : 'MCP Local'}
-          </button>
-
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-700">
-            <label className="flex items-center gap-1 cursor-pointer">
-              <span className="text-[11px] text-slate-400 font-bold uppercase">Auto</span>
-              <input
-                type="checkbox"
-                checked={autoLevel}
-                onChange={(e) => setAutoLevel(e.target.checked)}
-                className="w-4 h-4 accent-blue-500"
-              />
-            </label>
-            <label className="flex items-center gap-1 cursor-pointer">
-              <span className="text-[11px] text-slate-400 font-bold uppercase">Inspect</span>
-              <input
-                type="checkbox"
-                checked={inspectMode}
-                onChange={(e) => setInspectMode(e.target.checked)}
-                className="w-4 h-4 accent-emerald-500"
-              />
-            </label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => triggerDrillThroughCapture('UI_BUTTON', true)}
+                className="px-2 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg text-[11px] font-bold font-mono text-white"
+              >
+                🎯 Ctrl+Shift+Alt+G
+              </button>
+              <button
+                onClick={generateJsonDump}
+                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[11px] font-bold font-mono text-white"
+              >
+                📋 JSON
+              </button>
+              <button
+                onClick={downloadJsonFile}
+                className="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-[11px] font-bold font-mono text-white"
+              >
+                💾 .JSON
+              </button>
+              <button
+                onClick={exportStandaloneHtml}
+                className="px-2 py-1 bg-amber-700/80 hover:bg-amber-600 rounded-lg text-[11px] font-bold font-mono text-amber-100"
+              >
+                📦 HTML
+              </button>
+              <label className="flex items-center gap-1 cursor-pointer pl-1">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Auto</span>
+                <input
+                  type="checkbox"
+                  checked={autoLevel}
+                  onChange={(e) => setAutoLevel(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-blue-500"
+                />
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <span className="text-[10px] text-slate-400 font-bold uppercase">FFT</span>
+                <input
+                  type="checkbox"
+                  checked={inspectMode}
+                  onChange={(e) => setInspectMode(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-emerald-500"
+                />
+              </label>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* ==================================================================== */}
@@ -4218,26 +4205,26 @@ export default function RTTutor() {
       {/* ==================================================================== */}
       {/* MAIN COGNITIVE GAME BOARD (Fluid Mobile-Safe Typography & Grid)      */}
       {/* ==================================================================== */}
-      <main className="flex-1 flex flex-col items-center justify-center px-3 sm:px-6 py-4">
+      <main className="flex-1 flex flex-col items-center justify-center px-2.5 sm:px-6 py-2 sm:py-4">
         {/* Target Word Display */}
         <div
-          className="mb-8 sm:mb-12 cursor-pointer group relative"
+          className="mb-3 sm:mb-8 cursor-pointer group relative"
           onClick={() => {
             lastInteraction.current = Date.now();
             if (isVoiceSilent) setIsVoiceSilent(false);
             speakWord(currentRound?.target || '', curriculumMode === 'aapnootmies' ? 'nl' : undefined);
           }}
         >
-          <h1 className="text-6xl sm:text-8xl md:text-[110px] leading-none font-black tracking-tight text-white flex items-center justify-center transition-transform group-active:scale-95">
+          <h1 className="text-5xl sm:text-8xl md:text-[104px] leading-none font-black tracking-tight text-white flex items-center justify-center transition-transform group-active:scale-95">
             {currentRound?.target && renderWordWithSmartColors(currentRound.target, currentRound.target)}
-            <span className="ml-3 sm:ml-5 text-2xl sm:text-3xl opacity-30 group-hover:opacity-80 transition-opacity">
+            <span className="ml-2.5 sm:ml-4 text-xl sm:text-3xl opacity-40 group-hover:opacity-90 transition-opacity">
               {isVoiceSilent ? '🔇' : '🔊'}
             </span>
           </h1>
         </div>
 
         {/* Dynamic Word/Letter Grid with Real-Time Hover Detection & Golden Cell Evolution */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6 max-w-6xl w-full px-2 sm:px-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-5 max-w-6xl w-full px-1 sm:px-4">
           {currentRound?.options.map((word, i) => {
             const matchLen = getMatchingPrefixLength(currentRound.target, word);
             const isCandidateMatch = matchLen > 0;
@@ -4270,7 +4257,7 @@ export default function RTTutor() {
                     ? `0 0 ${Math.round(28 * goldenGlowIntensity)}px rgba(245, 158, 11, ${0.35 * goldenGlowIntensity})`
                     : undefined
                 }}
-                className="relative group overflow-hidden h-40 sm:h-48 md:h-52 rounded-2xl sm:rounded-3xl border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex flex-col items-center justify-end pb-2 sm:pb-2.5 text-2xl sm:text-4xl md:text-5xl font-bold transition-colors active:scale-95"
+                className="relative group overflow-hidden h-32 sm:h-48 md:h-52 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex flex-col items-center justify-end pb-1.5 sm:pb-2.5 text-2xl sm:text-4xl md:text-5xl font-bold transition-colors active:scale-95"
               >
                 {/* Evolving Cut-Out Figure + Line-Art SVG Underlay (Reacts to Golden Cell Hover!) */}
                 <CellSvgUnderlay
@@ -4308,7 +4295,7 @@ export default function RTTutor() {
                 )}
 
                 {/* Classic Leesplankje Bottom Word Label with Progressive Orthographic Highlighting */}
-                <div className="relative z-10 flex tracking-wide drop-shadow px-3.5 py-0.5 rounded-xl bg-slate-950/75 backdrop-blur-[1px] border border-amber-500/25 shadow-md">
+                <div className="relative z-10 flex tracking-wide drop-shadow px-3 py-0.5 rounded-xl bg-slate-950/75 backdrop-blur-[1px] border border-amber-500/25 shadow-md">
                   {renderWordWithSmartColors(word, currentRound.target)}
                 </div>
               </button>
@@ -4318,25 +4305,27 @@ export default function RTTutor() {
       </main>
 
       {/* ==================================================================== */}
-      {/* BOTTOM LIVE COGNITIVE INTROSPECTION & HOVER / 2D-FFT STREAM BAR      */}
+      {/* BOTTOM BAR: Clean Tutor Message (2D-FFT Telemetry only in Dev Mode)  */}
       {/* ==================================================================== */}
-      <footer className="relative z-30 mx-3 sm:mx-4 mb-3 px-3.5 py-2 rounded-xl bg-slate-800/75 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-300">
-        <div className="flex items-center gap-2 truncate max-w-full sm:max-w-[60%]">
-          <span className="text-amber-300 font-bold uppercase shrink-0">
-            {isVoiceSilent ? '🔇 Standby:' : `🗣️ Introspect (L${introspectionLevel}):`}
-          </span>
-          <span className="text-slate-200 truncate">{introspectionLog}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 shrink-0">
-          <span className="text-amber-300/90">
-            Hover: {hoveredWord ? `"${hoveredWord}" (${cellDwellState[hoveredWord] || 0}ms)` : '—'}
-          </span>
-          <span>2D-FFT: {liveDerivedData.fft2D.dominantFrequencyXHz}Hz</span>
-          <span>Throttle: {(baseThreshold / 1000).toFixed(1)}s</span>
-          <span>Streak: {streak} 🚀</span>
-          <span>PTS: {telemetryData.current.length}</span>
-        </div>
-      </footer>
+      {showDevTools ? (
+        <footer className="relative z-30 mx-2.5 sm:mx-4 mb-2 px-3 py-1.5 rounded-xl bg-slate-800/75 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-300">
+          <div className="flex items-center gap-2 truncate max-w-full sm:max-w-[60%]">
+            <span className="text-amber-300 font-bold uppercase shrink-0">
+              {isVoiceSilent ? '🔇 Standby:' : `🗣️ L${introspectionLevel}:`}
+            </span>
+            <span className="text-slate-200 truncate">{introspectionLog}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 shrink-0">
+            <span className="text-amber-300/90">
+              Hover: {hoveredWord ? `"${hoveredWord}" (${cellDwellState[hoveredWord] || 0}ms)` : '—'}
+            </span>
+            <span>2D-FFT: {liveDerivedData.fft2D.dominantFrequencyXHz}Hz</span>
+            <span>PTS: {telemetryData.current.length}</span>
+          </div>
+        </footer>
+      ) : (
+        <div className="h-2 sm:h-3" />
+      )}
 
       {/* ==================================================================== */}
       {/* INTERACTIVE 17-FIGURE LEESPLANKJE (AAP-NOOT-MIES) CUT-OUT MODAL       */}
