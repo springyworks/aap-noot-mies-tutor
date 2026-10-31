@@ -707,6 +707,29 @@
     const motionAmp = Math.min(1.6, Math.max(0.2, effectiveAliveness - 0.1 + goldenEvolution * 0.7));
     const w = word.toLowerCase();
     const LEESPLANK_WORD_ALIASES = {
+      a: "aap",
+      b: "bok",
+      c: "schapen",
+      d: "does",
+      e: "weide",
+      f: "duif",
+      g: "gijs",
+      h: "hok",
+      i: "wim",
+      j: "jet",
+      k: "kees",
+      l: "lam",
+      m: "mies",
+      n: "noot",
+      o: "noot",
+      p: "aap",
+      r: "vuur",
+      s: "schapen",
+      t: "teun",
+      u: "duif",
+      v: "vuur",
+      w: "wim",
+      z: "zus",
       schaap: "lam",
       vlam: "vuur",
       stoom: "vuur",
@@ -776,14 +799,14 @@
     const primaryStroke = isTarget && goldenEvolution > 0.2 ? "#f3c663" : isCandidateMatch || isHovered ? "#d4b483" : "#64748b";
     const secondaryStroke = isTarget && goldenEvolution > 0.4 ? "#7eaba0" : isCandidateMatch ? "#7eaba0" : "#475569";
     const accentColor = isTarget ? "#f59e0b" : "#8a99b8";
-    const sway = Math.sin(animTick * 2.4) * 5 * motionAmp;
-    const bob = Math.cos(animTick * 1.9) * 3.5 * motionAmp;
-    const pulse = 1 + Math.sin(animTick * 3.2) * 0.05 * motionAmp + goldenEvolution * 0.08;
-    const wingAngle = Math.sin(animTick * 4.8) * 16 * motionAmp;
+    const sway = 0;
+    const bob = 0;
+    const pulse = 1 + goldenEvolution * 0.05;
+    const wingAngle = Math.sin(animTick * 2.4) * 6 * motionAmp;
     const showCutoutImage = Boolean(anmFigure);
     const showVectorArt = !anmFigure || anmFigureMode !== "photo";
-    const imgW = anmFigure?.isLandscape ? 154 : 118;
-    const imgH = anmFigure?.isLandscape ? 92 : 98;
+    const imgW = anmFigure?.isLandscape ? 166 : 128;
+    const imgH = anmFigure?.isLandscape ? 104 : 112;
     const imgX = -imgW / 2;
     const imgY = -imgH / 2;
     const frameDashOffset = Math.round(440 * (1 - drawProgress));
@@ -803,19 +826,19 @@
     return /* @__PURE__ */ react_shim_default.createElement(
       "svg",
       {
-        viewBox: "0 0 200 140",
-        className: "absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible",
+        viewBox: "0 0 200 136",
+        className: "w-full h-full pointer-events-none select-none overflow-hidden",
         style: {
-          opacity: level === 0 ? Math.max(0.45, effectiveAliveness * 0.85) : Math.min(0.98, (showCutoutImage ? 0.68 : 0.25) + effectiveAliveness * 0.3 + goldenEvolution * 0.2),
+          opacity: Math.min(0.98, (showCutoutImage ? 0.82 : 0.45) + effectiveAliveness * 0.16 + goldenEvolution * 0.1),
           transition: "opacity 0.2s linear"
         }
       },
       /* @__PURE__ */ react_shim_default.createElement("defs", null, /* @__PURE__ */ react_shim_default.createElement("radialGradient", { id: `glow-${w}`, cx: "50%", cy: "50%", r: "50%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: primaryStroke, stopOpacity: 0.28 * fillProgress + goldenEvolution * 0.25 }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: primaryStroke, stopOpacity: 0 })), showCutoutImage && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("clipPath", { id: `anm-clip-${w}` }, /* @__PURE__ */ react_shim_default.createElement("rect", { x: imgX, y: imgY, width: imgW, height: imgH, rx: "14", ry: "14" })), /* @__PURE__ */ react_shim_default.createElement("radialGradient", { id: `lamp-blob1-${w}`, cx: "50%", cy: "50%", r: "50%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: lampWarmth, stopOpacity: "0.62" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "55%", stopColor: lampPrimary, stopOpacity: "0.34" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: lampPrimary, stopOpacity: "0" })), /* @__PURE__ */ react_shim_default.createElement("radialGradient", { id: `lamp-blob2-${w}`, cx: "50%", cy: "50%", r: "50%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: lampSecondary, stopOpacity: "0.54" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "60%", stopColor: lampPrimary, stopOpacity: "0.24" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: lampSecondary, stopOpacity: "0" })), /* @__PURE__ */ react_shim_default.createElement("linearGradient", { id: `lamp-warm-back-${w}`, x1: "0%", y1: "100%", x2: "100%", y2: "0%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: lampPrimary, stopOpacity: "0.22" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "50%", stopColor: "#1e293b", stopOpacity: "0.12" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: lampSecondary, stopOpacity: "0.20" })), /* @__PURE__ */ react_shim_default.createElement("linearGradient", { id: `anm-vignette-${w}`, x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: "#0f172a", stopOpacity: "0.06" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "65%", stopColor: "#0f172a", stopOpacity: "0.14" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: "#0f172a", stopOpacity: "0.44" })))),
-      /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "100", cy: "54", rx: 76 * pulse, ry: 46 * pulse, fill: `url(#glow-${w})` }),
+      /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "100", cy: "68", rx: 76 * pulse, ry: 48 * pulse, fill: `url(#glow-${w})` }),
       showCutoutImage && anmFigure && /* @__PURE__ */ react_shim_default.createElement(
         "g",
         {
-          transform: `translate(${(100 + sway * 0.45).toFixed(2)}, ${(53 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.96 + effectiveAliveness * 0.08 + goldenEvolution * 0.08).toFixed(3)})`
+          transform: `translate(100, 68) scale(${(0.98 + goldenEvolution * 0.04).toFixed(3)})`
         },
         /* @__PURE__ */ react_shim_default.createElement(
           "g",
@@ -1661,7 +1684,7 @@
     });
     const [tutorEmotion, setTutorEmotion] = useState("SERENE");
     const [isVoiceSilent, setIsVoiceSilent] = useState(false);
-    const [kineticMode, setKineticMode] = useState(() => level === 0);
+    const [kineticMode, setKineticMode] = useState(false);
     const [introspectionLog, setIntrospectionLog] = useState(
       "Systeem gereed. Leren is een raket lanceren in je brein!"
     );
@@ -2992,7 +3015,6 @@
       if (newLevel > 5) newLevel = 0;
       setLevel(newLevel);
       localStorage.setItem("tutor_level", String(newLevel));
-      if (newLevel === 0) setKineticMode(true);
       generateRound(newLevel, streak, "standard");
     };
     const toggleLanguage = () => {
@@ -3378,9 +3400,9 @@
               borderColor: isExactTarget && goldenGlowIntensity > 0.25 ? `rgba(243, 198, 99, ${0.45 + goldenGlowIntensity * 0.55})` : void 0,
               boxShadow: isExactTarget && goldenGlowIntensity > 0.3 ? `0 0 ${Math.round(28 * goldenGlowIntensity)}px rgba(245, 158, 11, ${0.35 * goldenGlowIntensity})` : void 0
             },
-            className: "relative group overflow-hidden h-32 sm:h-48 md:h-52 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex flex-col items-center justify-end pb-1.5 sm:pb-2.5 text-2xl sm:text-4xl md:text-5xl font-bold transition-colors active:scale-95"
+            className: "relative group overflow-hidden h-36 sm:h-52 md:h-56 p-0 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 shadow-xl flex flex-col items-stretch justify-between transition-colors active:scale-95"
           },
-          /* @__PURE__ */ react_shim_default.createElement(
+          /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-slate-800/90" }, /* @__PURE__ */ react_shim_default.createElement(
             CellSvgUnderlay,
             {
               word,
@@ -3393,20 +3415,18 @@
               animTick: animTick + i * 0.9,
               anmFigureMode
             }
-          ),
-          hoverDwellMs > 150 && /* @__PURE__ */ react_shim_default.createElement(
+          ), kineticMode && /* @__PURE__ */ react_shim_default.createElement("svg", { className: "absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity", viewBox: "0 0 100 100", preserveAspectRatio: "none" }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 18 L 2 2 L 18 2", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 2 L 98 2 L 98 18", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 82 L 2 98 L 18 98", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 98 L 98 98 L 98 82", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }))),
+          /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative z-10 w-full py-1 sm:py-1.5 px-2 bg-slate-950/95 border-t-2 border-slate-700/80 flex items-center justify-center shrink-0 text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-wide" }, renderWordWithSmartColors(word, currentRound.target), hoverDwellMs > 150 && /* @__PURE__ */ react_shim_default.createElement(
             "div",
             {
               className: "absolute bottom-0 left-0 h-1 transition-all pointer-events-none",
               style: {
                 width: `${Math.min(100, Math.round(hoverDwellMs / 2400 * 100))}%`,
                 backgroundColor: isExactTarget ? "#f59e0b" : "#7eaba0",
-                opacity: 0.75
+                opacity: 0.85
               }
             }
-          ),
-          kineticMode && /* @__PURE__ */ react_shim_default.createElement("svg", { className: "absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity", viewBox: "0 0 100 100", preserveAspectRatio: "none" }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 18 L 2 2 L 18 2", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 2 L 98 2 L 98 18", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 82 L 2 98 L 18 98", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 98 L 98 98 L 98 82", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" })),
-          /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative z-10 flex tracking-wide drop-shadow px-3 py-0.5 rounded-xl bg-slate-950/75 backdrop-blur-[1px] border border-amber-500/25 shadow-md" }, renderWordWithSmartColors(word, currentRound.target))
+          ))
         );
       }))),
       showDevTools ? /* @__PURE__ */ react_shim_default.createElement("footer", { className: "relative z-30 mx-2.5 sm:mx-4 mb-2 px-3 py-1.5 rounded-xl bg-slate-800/75 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-300" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center gap-2 truncate max-w-full sm:max-w-[60%]" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold uppercase shrink-0" }, isVoiceSilent ? "\u{1F507} Standby:" : `\u{1F5E3}\uFE0F L${introspectionLevel}:`), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-slate-200 truncate" }, introspectionLog)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex flex-wrap items-center gap-3 text-[11px] text-slate-400 shrink-0" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300/90" }, "Hover: ", hoveredWord ? `"${hoveredWord}" (${cellDwellState[hoveredWord] || 0}ms)` : "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "2D-FFT: ", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz"), /* @__PURE__ */ react_shim_default.createElement("span", null, "PTS: ", telemetryData.current.length))) : /* @__PURE__ */ react_shim_default.createElement("div", { className: "h-2 sm:h-3" }),

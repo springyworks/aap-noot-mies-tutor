@@ -641,8 +641,31 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
 
   const w = word.toLowerCase();
 
-  // Map all 17 classic Leesplankje words + Dutch/English L1-L5 vocabulary to a Leesplankje WebP figure!
+  // Map all 17 classic Leesplankje words + L0 single letters + L1-L5 vocabulary to a Leesplankje WebP figure!
   const LEESPLANK_WORD_ALIASES: Record<string, string> = {
+    a: 'aap',
+    b: 'bok',
+    c: 'schapen',
+    d: 'does',
+    e: 'weide',
+    f: 'duif',
+    g: 'gijs',
+    h: 'hok',
+    i: 'wim',
+    j: 'jet',
+    k: 'kees',
+    l: 'lam',
+    m: 'mies',
+    n: 'noot',
+    o: 'noot',
+    p: 'aap',
+    r: 'vuur',
+    s: 'schapen',
+    t: 'teun',
+    u: 'duif',
+    v: 'vuur',
+    w: 'wim',
+    z: 'zus',
     schaap: 'lam',
     vlam: 'vuur',
     stoom: 'vuur',
@@ -723,16 +746,17 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
     : (isCandidateMatch ? '#7eaba0' : '#475569');
   const accentColor = isTarget ? '#f59e0b' : '#8a99b8';
 
-  const sway = Math.sin(animTick * 2.4) * 5 * motionAmp;
-  const bob = Math.cos(animTick * 1.9) * 3.5 * motionAmp;
-  const pulse = 1 + Math.sin(animTick * 3.2) * 0.05 * motionAmp + goldenEvolution * 0.08;
-  const wingAngle = Math.sin(animTick * 4.8) * 16 * motionAmp;
+  // Default: NO wiggling (sway = 0, bob = 0) so figures stay calm & steady while the 1960s Motion-Lamp glows behind them
+  const sway = 0;
+  const bob = 0;
+  const pulse = 1 + goldenEvolution * 0.05;
+  const wingAngle = Math.sin(animTick * 2.4) * 6 * motionAmp;
 
   // ALWAYS render the transparent Alpha-Channel WebP Leesplankje figure + 1960s Motion-Lamp when anmFigure exists!
   const showCutoutImage = Boolean(anmFigure);
   const showVectorArt = !anmFigure || anmFigureMode !== 'photo';
-  const imgW = anmFigure?.isLandscape ? 154 : 118;
-  const imgH = anmFigure?.isLandscape ? 92 : 98;
+  const imgW = anmFigure?.isLandscape ? 166 : 128;
+  const imgH = anmFigure?.isLandscape ? 104 : 112;
   const imgX = -imgW / 2;
   const imgY = -imgH / 2;
   const frameDashOffset = Math.round(440 * (1 - drawProgress));
@@ -754,12 +778,10 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
 
   return (
     <svg
-      viewBox="0 0 200 140"
-      className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible"
+      viewBox="0 0 200 136"
+      className="w-full h-full pointer-events-none select-none overflow-hidden"
       style={{
-        opacity: level === 0
-          ? Math.max(0.45, effectiveAliveness * 0.85)
-          : Math.min(0.98, (showCutoutImage ? 0.68 : 0.25) + effectiveAliveness * 0.30 + goldenEvolution * 0.20),
+        opacity: Math.min(0.98, (showCutoutImage ? 0.82 : 0.45) + effectiveAliveness * 0.16 + goldenEvolution * 0.10),
         transition: 'opacity 0.2s linear'
       }}
     >
@@ -798,12 +820,12 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       </defs>
 
       {/* Ambient Aura */}
-      <ellipse cx="100" cy="54" rx={76 * pulse} ry={46 * pulse} fill={`url(#glow-${w})`} />
+      <ellipse cx="100" cy="68" rx={76 * pulse} ry={48 * pulse} fill={`url(#glow-${w})`} />
 
-      {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + SUBTLE 1960s MOTION-LAMP UNDERLAY */}
+      {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + SUBTLE 1960s MOTION-LAMP UNDERLAY (STEADY, NO WIGGLING) */}
       {showCutoutImage && anmFigure && (
         <g
-          transform={`translate(${(100 + sway * 0.45).toFixed(2)}, ${(53 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.96 + effectiveAliveness * 0.08 + goldenEvolution * 0.08).toFixed(3)})`}
+          transform={`translate(100, 68) scale(${(0.98 + goldenEvolution * 0.04).toFixed(3)})`}
         >
           <g
             clipPath={`url(#anm-clip-${w})`}
@@ -2097,7 +2119,7 @@ export default function RTTutor() {
   });
   const [tutorEmotion, setTutorEmotion] = useState<TutorEmotion>('SERENE');
   const [isVoiceSilent, setIsVoiceSilent] = useState<boolean>(false);
-  const [kineticMode, setKineticMode] = useState<boolean>(() => level === 0);
+  const [kineticMode, setKineticMode] = useState<boolean>(false);
   const [introspectionLog, setIntrospectionLog] = useState<string>(
     'Systeem gereed. Leren is een raket lanceren in je brein!'
   );
@@ -3683,7 +3705,6 @@ export default function RTTutor() {
     if (newLevel > 5) newLevel = 0;
     setLevel(newLevel);
     localStorage.setItem('tutor_level', String(newLevel));
-    if (newLevel === 0) setKineticMode(true);
     generateRound(newLevel, streak, 'standard');
   };
 
@@ -4257,46 +4278,48 @@ export default function RTTutor() {
                     ? `0 0 ${Math.round(28 * goldenGlowIntensity)}px rgba(245, 158, 11, ${0.35 * goldenGlowIntensity})`
                     : undefined
                 }}
-                className="relative group overflow-hidden h-32 sm:h-48 md:h-52 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex flex-col items-center justify-end pb-1.5 sm:pb-2.5 text-2xl sm:text-4xl md:text-5xl font-bold transition-colors active:scale-95"
+                className="relative group overflow-hidden h-36 sm:h-52 md:h-56 p-0 rounded-2xl sm:rounded-3xl border-3 sm:border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 shadow-xl flex flex-col items-stretch justify-between transition-colors active:scale-95"
               >
-                {/* Evolving Cut-Out Figure + Line-Art SVG Underlay (Reacts to Golden Cell Hover!) */}
-                <CellSvgUnderlay
-                  word={word}
-                  aliveness={aliveness}
-                  hoverDwellMs={hoverDwellMs}
-                  isHovered={isHovered}
-                  isCandidateMatch={isCandidateMatch}
-                  isTarget={isExactTarget}
-                  level={level}
-                  animTick={animTick + i * 0.9}
-                  anmFigureMode={anmFigureMode}
-                />
-
-                {/* Subtle Golden Cell Stage Progress Bar at Bottom of Cell */}
-                {hoverDwellMs > 150 && (
-                  <div
-                    className="absolute bottom-0 left-0 h-1 transition-all pointer-events-none"
-                    style={{
-                      width: `${Math.min(100, Math.round((hoverDwellMs / 2400) * 100))}%`,
-                      backgroundColor: isExactTarget ? '#f59e0b' : '#7eaba0',
-                      opacity: 0.75
-                    }}
+                {/* TOP COMPARTMENT: Dedicated SVG + Alpha-WebP Aap-Noot-Mies + 1960s Motion-Lamp Animation */}
+                <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-slate-800/90">
+                  <CellSvgUnderlay
+                    word={word}
+                    aliveness={aliveness}
+                    hoverDwellMs={hoverDwellMs}
+                    isHovered={isHovered}
+                    isCandidateMatch={isCandidateMatch}
+                    isTarget={isExactTarget}
+                    level={level}
+                    animTick={animTick + i * 0.9}
+                    anmFigureMode={anmFigureMode}
                   />
-                )}
 
-                {/* 2D Kinetic Target Corner Reticles */}
-                {kineticMode && (
-                  <svg className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <path d="M 2 18 L 2 2 L 18 2" fill="none" stroke="#d4b483" strokeWidth="1.5" />
-                    <path d="M 82 2 L 98 2 L 98 18" fill="none" stroke="#d4b483" strokeWidth="1.5" />
-                    <path d="M 2 82 L 2 98 L 18 98" fill="none" stroke="#d4b483" strokeWidth="1.5" />
-                    <path d="M 82 98 L 98 98 L 98 82" fill="none" stroke="#d4b483" strokeWidth="1.5" />
-                  </svg>
-                )}
+                  {/* 2D Kinetic Target Corner Reticles */}
+                  {kineticMode && (
+                    <svg className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <path d="M 2 18 L 2 2 L 18 2" fill="none" stroke="#d4b483" strokeWidth="1.5" />
+                      <path d="M 82 2 L 98 2 L 98 18" fill="none" stroke="#d4b483" strokeWidth="1.5" />
+                      <path d="M 2 82 L 2 98 L 18 98" fill="none" stroke="#d4b483" strokeWidth="1.5" />
+                      <path d="M 82 98 L 98 98 L 98 82" fill="none" stroke="#d4b483" strokeWidth="1.5" />
+                    </svg>
+                  )}
+                </div>
 
-                {/* Classic Leesplankje Bottom Word Label with Progressive Orthographic Highlighting */}
-                <div className="relative z-10 flex tracking-wide drop-shadow px-3 py-0.5 rounded-xl bg-slate-950/75 backdrop-blur-[1px] border border-amber-500/25 shadow-md">
+                {/* BOTTOM COMPARTMENT: Separate Leesplankje Word / Single Letter Strip */}
+                <div className="relative z-10 w-full py-1 sm:py-1.5 px-2 bg-slate-950/95 border-t-2 border-slate-700/80 flex items-center justify-center shrink-0 text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-wide">
                   {renderWordWithSmartColors(word, currentRound.target)}
+
+                  {/* Subtle Golden Cell Stage Progress Bar at Bottom of Cell */}
+                  {hoverDwellMs > 150 && (
+                    <div
+                      className="absolute bottom-0 left-0 h-1 transition-all pointer-events-none"
+                      style={{
+                        width: `${Math.min(100, Math.round((hoverDwellMs / 2400) * 100))}%`,
+                        backgroundColor: isExactTarget ? '#f59e0b' : '#7eaba0',
+                        opacity: 0.85
+                      }}
+                    />
+                  )}
                 </div>
               </button>
             );
