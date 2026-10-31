@@ -2043,6 +2043,172 @@ const TutorAvatarHeader: React.FC<TutorAvatarProps> = ({
 // ============================================================================
 
 // ============================================================================
+// MOBILE BOTTOM SHEET: tiny always-there essentials ("peek"), swipe up for up to 80% of the screen
+// ============================================================================
+
+const SHEET_PEEK_PX = 74;
+
+const MobileBottomSheet = ({
+  peek,
+  children,
+  hint,
+  onOpenChange
+}: {
+  peek: React.ReactNode;
+  children: React.ReactNode;
+  hint: string;
+  onOpenChange?: (open: boolean) => void;
+}) => {
+  const [open, setOpen] = useState<boolean>(false);
+  const [dragY, setDragY] = useState<number | null>(null); // live translateY while dragging
+  const [calm, setCalm] = useState<boolean>(false); // fade the peek when the child is busy playing
+  const [seen, setSeen] = useState<boolean>(() => {
+    try { return localStorage.getItem('sheet_seen') === '1'; } catch { return false; }
+  });
+  const [vh, setVh] = useState<number>(typeof window !== 'undefined' ? window.innerHeight : 700);
+  const drag = useRef<{ startY: number; startT: number; base: number; active: boolean; lastY: number; lastT: number } | null>(null);
+  const justDragged = useRef<boolean>(false);
+  const calmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sheetH = Math.round(vh * 0.8);
+  const closedY = sheetH - SHEET_PEEK_PX;
+  const baseY = open ? 0 : closedY;
+  const y = dragY !== null ? dragY : baseY;
+  const progress = 1 - y / closedY; // 0 = peek, 1 = fully open
+
+  useEffect(() => {
+    const onResize = () => setVh(window.innerHeight);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const wake = useCallback(() => {
+    setCalm(false);
+    if (calmTimer.current) clearTimeout(calmTimer.current);
+    calmTimer.current = setTimeout(() => setCalm(true), 6000);
+  }, []);
+
+  useEffect(() => {
+    wake();
+    return () => { if (calmTimer.current) clearTimeout(calmTimer.current); };
+  }, [wake]);
+
+  const setOpenState = useCallback((next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+    if (next && !seen) {
+      setSeen(true);
+      try { localStorage.setItem('sheet_seen', '1'); } catch { /* ignore */ }
+    }
+  }, [onOpenChange, seen]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    wake();
+    drag.current = { startY: e.clientY, startT: Date.now(), base: baseY, active: false, lastY: e.clientY, lastT: Date.now() };
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.clientY - d.startY;
+    if (!d.active && Math.abs(dy) > 7) {
+      d.active = true;
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    if (d.active) {
+      d.lastY = e.clientY;
+      d.lastT = Date.now();
+      setDragY(Math.max(0, Math.min(closedY, d.base + dy)));
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    if (!d.active) return;
+    justDragged.current = true;
+    setTimeout(() => { justDragged.current = false; }, 80);
+    const dy = e.clientY - d.startY;
+    const dt = Math.max(1, Date.now() - d.startT);
+    const velocity = dy / dt; // px/ms, negative = swiping up
+    const finalY = Math.max(0, Math.min(closedY, d.base + dy));
+    let next = finalY < closedY / 2;
+    if (velocity < -0.45) next = true;
+    if (velocity > 0.45) next = false;
+    setDragY(null);
+    setOpenState(next);
+  };
+
+  return (
+    <>
+      {/* Soft scrim: only appears while the sheet is pulled up. Tap it to put the sheet back down. */}
+      <div
+        onClick={() => setOpenState(false)}
+        className="sm:hidden fixed inset-0 z-40"
+        style={{
+          background: 'rgba(5, 2, 12, 0.55)',
+          opacity: Math.max(0, progress),
+          pointerEvents: progress > 0.08 ? 'auto' : 'none',
+          transition: dragY === null ? 'opacity 0.28s ease' : 'none'
+        }}
+      />
+      <div
+        className="sm:hidden fixed left-0 right-0 bottom-0 z-50 flex flex-col rounded-t-3xl border-t-2 border-purple-500/60 shadow-[0_-10px_40px_rgba(88,28,135,0.45)]"
+        style={{
+          height: sheetH,
+          transform: `translateY(${y}px)`,
+          transition: dragY === null ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+          background: 'linear-gradient(180deg, rgba(24,8,44,0.97) 0%, rgba(8,3,18,0.99) 100%)',
+          backdropFilter: 'blur(10px)',
+          paddingBottom: 'env(safe-area-inset-bottom)'
+        }}
+        onPointerDownCapture={wake}
+      >
+        {/* Draggable header: handle + always-visible essentials */}
+        <div
+          className="shrink-0 select-none"
+          style={{ touchAction: 'none', height: SHEET_PEEK_PX }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onClickCapture={(e) => { if (justDragged.current) { e.stopPropagation(); e.preventDefault(); } }}
+        >
+          <button
+            aria-label={open ? 'Sluiten' : 'Meer opties'}
+            onClick={() => setOpenState(!open)}
+            className="w-full flex flex-col items-center pt-1.5 pb-1 group"
+          >
+            <span
+              className={`block h-1.5 rounded-full bg-purple-300/70 transition-all ${!seen && !open ? 'animate-pulse' : ''}`}
+              style={{ width: open ? 56 : 44 }}
+            />
+            {!open && !seen && (
+              <span className="text-[9px] text-purple-300/70 leading-none mt-1 tracking-wide">{hint}</span>
+            )}
+          </button>
+          <div
+            className="px-3 flex items-center justify-between gap-2 transition-opacity duration-500"
+            style={{ opacity: calm && !open ? 0.55 : 1 }}
+          >
+            {peek}
+          </div>
+        </div>
+
+        {/* Detail groups (only reachable by swiping/tapping up) */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-6 space-y-3"
+          style={{ touchAction: 'pan-y', opacity: Math.min(1, Math.max(0, progress * 1.6)), pointerEvents: open ? 'auto' : 'none' }}
+        >
+          {children}
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ============================================================================
 // DEEP-LINK SHARING: the full app state lives in the URL hash, e.g.
 //   #go=1&cur=standard&lvl=0&lang=nl&fft=1&dev=1&fig=hybrid&intro=1&kin=0&pin=0&t=aap
 // Copy the address bar (or press the 🔗 button) and anyone opening it sees the same view.
@@ -4028,8 +4194,8 @@ export default function RTTutor() {
       {/* ==================================================================== */}
       <header className="relative z-40 flex flex-col gap-1.5 px-2.5 sm:px-4 pt-2 sm:pt-3 pb-1">
         <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
-          {/* Essential Player Controls (Fits cleanly on phones!) */}
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+          {/* Essential Player Controls (desktop/tablet; phones use the bottom sheet) */}
+          <div className="hidden sm:flex flex-wrap items-center gap-1 sm:gap-2">
             <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow">
               <button
                 onClick={() => changeLevel(-1)}
@@ -4106,14 +4272,14 @@ export default function RTTutor() {
             <button
               onClick={shareCurrentView}
               title={language === 'nl' ? 'Deel deze weergave als link' : 'Share this view as a link'}
-              className="px-2 py-1.5 rounded-lg text-xs border bg-purple-900/60 border-purple-400/70 text-purple-100 hover:bg-purple-800/80 transition-colors"
+              className="hidden sm:inline-block px-2 py-1.5 rounded-lg text-xs border bg-purple-900/60 border-purple-400/70 text-purple-100 hover:bg-purple-800/80 transition-colors"
             >
               🔗
             </button>
             <button
               onClick={() => setShowDevTools(!showDevTools)}
               title="Ontwikkelaars- & Telemetrie-opties tonen/verbergen"
-              className={`px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
+              className={`hidden sm:inline-block px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
                 showDevTools
                   ? 'bg-purple-900/80 border-purple-400 text-purple-100'
                   : 'bg-slate-800/70 border-slate-700/70 text-slate-400 hover:text-slate-200'
@@ -4126,7 +4292,7 @@ export default function RTTutor() {
 
         {/* Collapsible Developer & Telemetry Toolbar (Hidden by default on phones!) */}
         {showDevTools && (
-          <div className="flex flex-wrap items-center justify-between gap-1.5 p-2 rounded-xl bg-slate-950/90 border border-slate-700/80 text-xs shadow-xl">
+          <div className="hidden sm:flex flex-wrap items-center justify-between gap-1.5 p-2 rounded-xl bg-slate-950/90 border border-slate-700/80 text-xs shadow-xl">
             <div className="flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => {
@@ -4448,6 +4614,177 @@ export default function RTTutor() {
       {/* ==================================================================== */}
       {/* INTERACTIVE 17-FIGURE LEESPLANKJE (AAP-NOOT-MIES) CUT-OUT MODAL       */}
       {/* ==================================================================== */}
+      {/* ==================================================================== */}
+      {/* MOBILE BOTTOM SHEET: essentials always visible, swipe up for more    */}
+      {/* ==================================================================== */}
+      <div className="h-20 sm:hidden shrink-0" />
+      <MobileBottomSheet
+        hint={language === 'nl' ? 'veeg omhoog voor meer' : 'swipe up for more'}
+        peek={
+          <>
+            <div className="flex items-center bg-slate-800/90 rounded-xl border border-purple-500/40">
+              <button onClick={() => changeLevel(-1)} className="px-3 py-2 text-slate-200 text-base active:scale-90">◀</button>
+              <span className="px-1.5 font-mono font-bold text-sm text-amber-300 min-w-[34px] text-center">
+                {curriculumMode === 'aapnootmies' ? 'ANM' : `L${level}`}
+              </span>
+              <button onClick={() => changeLevel(1)} className="px-3 py-2 text-slate-200 text-base active:scale-90">▶</button>
+            </div>
+            <button
+              onClick={() => {
+                initAudio();
+                lastInteraction.current = Date.now();
+                if (isVoiceSilent) setIsVoiceSilent(false);
+                speakText(currentRound?.target || '', { forceLang: curriculumMode === 'aapnootmies' ? 'nl' : undefined, cancelFirst: true, bypassSilence: true });
+              }}
+              className="px-4 py-2 bg-amber-600/90 rounded-xl text-lg active:scale-90 shadow"
+              aria-label="Nog een keer horen"
+            >
+              🔊
+            </button>
+            <button
+              onClick={() => setIsVoiceSilent(!isVoiceSilent)}
+              className={`px-3 py-2 rounded-xl text-base active:scale-90 border ${isVoiceSilent ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-slate-800/90 border-purple-500/40 text-purple-200'}`}
+              aria-label="Stem aan/uit"
+            >
+              {isVoiceSilent ? '🔇' : '🗣️'}
+            </button>
+            <button
+              onClick={shareCurrentView}
+              className="px-3 py-2 bg-purple-700/80 border border-purple-300/60 rounded-xl text-base active:scale-90"
+              aria-label="Deel link"
+            >
+              🔗
+            </button>
+          </>
+        }
+      >
+        {/* GROUP 1: Learning */}
+        <section className="rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2">
+            {language === 'nl' ? '📚 Leren' : '📚 Learning'}
+          </h4>
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={() => switchCurriculumMode('aapnootmies')}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${curriculumMode === 'aapnootmies' ? 'bg-amber-600 border-amber-300 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}
+            >
+              🪵 Aap-Noot-Mies
+            </button>
+            <button
+              onClick={() => switchCurriculumMode('standard')}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${curriculumMode === 'standard' ? 'bg-blue-600 border-blue-300 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}
+            >
+              📚 L0 – L5
+            </button>
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            {[0, 1, 2, 3, 4, 5].map(n => (
+              <button
+                key={n}
+                onClick={() => {
+                  setCurriculumMode('standard');
+                  localStorage.setItem('tutor_curriculum', 'standard');
+                  setLevel(n);
+                  localStorage.setItem('tutor_level', String(n));
+                  generateRound(n, streak, 'standard');
+                }}
+                className={`py-2.5 rounded-xl font-mono font-bold text-sm border ${curriculumMode === 'standard' && level === n ? 'bg-purple-600 border-purple-200 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowLeesplankModal(true)}
+            className="mt-2 w-full py-2.5 bg-amber-900/50 border border-amber-500/50 rounded-xl text-sm font-bold text-amber-100"
+          >
+            🪵 {language === 'nl' ? 'Alle 17 plaatjes bekijken' : 'See all 17 pictures'}
+          </button>
+        </section>
+
+        {/* GROUP 2: Language & Voice */}
+        <section className="rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2">
+            {language === 'nl' ? '🗣️ Taal & Stem' : '🗣️ Language & Voice'}
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={toggleLanguage} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-slate-100">
+              🌍 {language === 'nl' ? 'Nederlands → English' : 'English → Nederlands'}
+            </button>
+            <button onClick={cycleIntrospectionLevel} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-amber-200">
+              💬 {language === 'nl' ? 'Uitleg' : 'Guidance'}: {introspectionLevel}
+            </button>
+            <button onClick={cycleTutorExpression} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-slate-100">
+              🎭 {language === 'nl' ? 'Gezichtje' : 'Expression'}
+            </button>
+            <button onClick={triggerManualIntrospection} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-slate-100">
+              🧠 {language === 'nl' ? 'Wat doe je?' : 'What are you doing?'}
+            </button>
+          </div>
+        </section>
+
+        {/* GROUP 3: Look & Research (for the curious) */}
+        <section className="rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2">
+            {language === 'nl' ? '🔬 Kijken & Onderzoek' : '🔬 Look & Research'}
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setInspectMode(!inspectMode)}
+              className={`py-2.5 rounded-xl text-sm font-bold border ${inspectMode ? 'bg-emerald-700 border-emerald-300 text-white' : 'bg-slate-800 border-slate-600 text-slate-200'}`}
+            >
+              📈 FFT {inspectMode ? 'AAN' : 'UIT'}
+            </button>
+            <button
+              onClick={() => setPinholeEnabled(!pinholeEnabled)}
+              className={`py-2.5 rounded-xl text-sm font-bold border ${pinholeEnabled ? 'bg-amber-700 border-amber-300 text-white' : 'bg-slate-800 border-slate-600 text-slate-200'}`}
+            >
+              🔦 Pinhole {pinholeEnabled ? 'AAN' : 'UIT'}
+            </button>
+            <button
+              onClick={() => {
+                const next = !kineticMode;
+                setKineticMode(next);
+                setTutorEmotion(next ? 'PLAYFUL' : 'SERENE');
+              }}
+              className={`py-2.5 rounded-xl text-sm font-bold border ${kineticMode ? 'bg-purple-700 border-purple-300 text-white' : 'bg-slate-800 border-slate-600 text-slate-200'}`}
+            >
+              🎯 {language === 'nl' ? 'Beweging' : 'Motion'} {kineticMode ? 'AAN' : 'UIT'}
+            </button>
+            <button
+              onClick={() => {
+                const order: AnmFigureMode[] = ['hybrid', 'photo', 'vector'];
+                setAnmFigureMode(order[(order.indexOf(anmFigureMode) + 1) % order.length]);
+              }}
+              className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-amber-200"
+            >
+              🖼️ {anmFigureMode}
+            </button>
+          </div>
+        </section>
+
+        {/* GROUP 4: Share & Export */}
+        <section className="rounded-2xl bg-slate-900/70 border border-purple-500/30 p-3">
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-purple-300 mb-2">
+            {language === 'nl' ? '🔗 Delen & Bewaren' : '🔗 Share & Save'}
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={shareCurrentView} className="py-2.5 bg-purple-700 border border-purple-300/60 rounded-xl text-sm font-bold text-white col-span-2">
+              🔗 {language === 'nl' ? 'Deel deze weergave als link' : 'Share this view as a link'}
+            </button>
+            <button onClick={generateJsonDump} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-emerald-300">
+              📋 JSON
+            </button>
+            <button onClick={downloadJsonFile} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-blue-300">
+              💾 .JSON
+            </button>
+            <button onClick={() => triggerDrillThroughCapture('UI_BUTTON', true)} className="py-2.5 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-purple-300 col-span-2">
+              🎯 {language === 'nl' ? 'Momentopname voor de AI' : 'Snapshot for the AI'}
+            </button>
+          </div>
+        </section>
+      </MobileBottomSheet>
+
       {showLeesplankModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 sm:p-6 backdrop-blur-sm">
           <div className="bg-slate-900 border-2 border-amber-500/60 w-full max-w-5xl rounded-2xl flex flex-col max-h-[92vh] shadow-2xl overflow-hidden">
