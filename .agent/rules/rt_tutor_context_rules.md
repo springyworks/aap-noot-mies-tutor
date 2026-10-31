@@ -19,3 +19,4 @@ description: Core architectural, pedagogical, and live verification rules for RT
 
 5. **Show Open Page & Exercise Live with Headed ("Show-It-All") Playwright:**
    - Always show the human developer an open interactive page in action AND exercise it with headed Playwright Chromium (`node dist/playwright_exerciser.mjs` / `scripts/playwright_exerciser.ts`).
+

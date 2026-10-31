@@ -3119,8 +3119,10 @@ export default function RTTutor() {
         case 'start_engine':
           initAudio();
           setStarted(true);
+          playSynth('wake');
           break;
         case 'set_curriculum': {
+          initAudio();
           const mode = (p.mode as CurriculumMode) || 'aapnootmies';
           setCurriculumMode(mode);
           localStorage.setItem('tutor_curriculum', mode);
@@ -3129,6 +3131,7 @@ export default function RTTutor() {
           break;
         }
         case 'set_level': {
+          initAudio();
           const nextLvl = Math.max(0, Math.min(5, Number(p.level ?? 0)));
           setCurriculumMode('standard');
           setLevel(nextLvl);
@@ -3143,11 +3146,12 @@ export default function RTTutor() {
           break;
         }
         case 'set_figure_mode': {
-          const fm = (p.mode as AnmFigureMode) || 'hybrid';
+          const fm = ((p.mode || p.figureMode) as AnmFigureMode) || 'hybrid';
           if (['hybrid', 'photo', 'vector'].includes(fm)) setAnmFigureMode(fm);
           break;
         }
         case 'set_target_word': {
+          initAudio();
           const w = String(p.word || 'mies').toLowerCase();
           const pool = curriculumMode === 'aapnootmies'
             ? AAP_NOOT_MIES_WORDS
@@ -3156,6 +3160,7 @@ export default function RTTutor() {
           const opts = [w, ...distractors].sort(() => 0.5 - Math.random());
           roundStartTime.current = Date.now();
           setCurrentRound({ target: w, options: opts });
+          playSynth('golden');
           speakWord(w, curriculumMode === 'aapnootmies' ? 'nl' : undefined);
           break;
         }
@@ -3215,8 +3220,12 @@ export default function RTTutor() {
           if (typeof p.emotion === 'string' && EMOTION_LIST.includes(p.emotion as TutorEmotion)) {
             setTutorEmotion(p.emotion as TutorEmotion);
           }
+          initAudio();
+          playSynth('correct');
           if (typeof p.spokenEncouragement === 'string' && p.spokenEncouragement.trim()) {
             speakText(p.spokenEncouragement, { emotionOverride: 'ENCOURAGING', cancelFirst: true });
+          } else if (typeof banner === 'string' && banner.trim()) {
+            speakText(banner.replace(/[^\p{L}\p{N}\s,!.?-]/gu, ''), { emotionOverride: 'ENCOURAGING', cancelFirst: true });
           }
           logTimelineEvent('ai_augmentation_applied', {
             hintThrottleMultiplier: nextHintMult,
@@ -3244,6 +3253,11 @@ export default function RTTutor() {
     ]
   );
 
+  const executeTransponderCommandRef = useRef(executeTransponderCommand);
+  useEffect(() => {
+    executeTransponderCommandRef.current = executeTransponderCommand;
+  }, [executeTransponderCommand]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     (window as unknown as Record<string, unknown>).__RT_TUTOR_BRIDGE__ = {
@@ -3263,7 +3277,7 @@ export default function RTTutor() {
       es.addEventListener('command', (ev: MessageEvent) => {
         try {
           const cmd = JSON.parse(ev.data);
-          executeTransponderCommand(cmd);
+          executeTransponderCommandRef.current(cmd);
         } catch {
           // ignore malformed command
         }
@@ -3275,7 +3289,7 @@ export default function RTTutor() {
     return () => {
       if (es) es.close();
     };
-  }, [executeTransponderCommand]);
+  }, []);
 
   // Export Standalone Self-Contained Mobile HTML File (With Aap Noot Mies & Pinhole!)
   const exportStandaloneHtml = () => {

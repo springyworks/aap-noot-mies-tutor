@@ -2477,8 +2477,10 @@
           case "start_engine":
             initAudio();
             setStarted(true);
+            playSynth("wake");
             break;
           case "set_curriculum": {
+            initAudio();
             const mode = p.mode || "aapnootmies";
             setCurriculumMode(mode);
             localStorage.setItem("tutor_curriculum", mode);
@@ -2487,6 +2489,7 @@
             break;
           }
           case "set_level": {
+            initAudio();
             const nextLvl = Math.max(0, Math.min(5, Number(p.level ?? 0)));
             setCurriculumMode("standard");
             setLevel(nextLvl);
@@ -2501,17 +2504,19 @@
             break;
           }
           case "set_figure_mode": {
-            const fm = p.mode || "hybrid";
+            const fm = p.mode || p.figureMode || "hybrid";
             if (["hybrid", "photo", "vector"].includes(fm)) setAnmFigureMode(fm);
             break;
           }
           case "set_target_word": {
+            initAudio();
             const w = String(p.word || "mies").toLowerCase();
             const pool = curriculumMode === "aapnootmies" ? AAP_NOOT_MIES_WORDS : DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS;
             const distractors = pool.filter((x) => x !== w).sort(() => 0.5 - Math.random()).slice(0, 5);
             const opts = [w, ...distractors].sort(() => 0.5 - Math.random());
             roundStartTime.current = Date.now();
             setCurrentRound({ target: w, options: opts });
+            playSynth("golden");
             speakWord(w, curriculumMode === "aapnootmies" ? "nl" : void 0);
             break;
           }
@@ -2561,8 +2566,12 @@
             if (typeof p.emotion === "string" && EMOTION_LIST.includes(p.emotion)) {
               setTutorEmotion(p.emotion);
             }
+            initAudio();
+            playSynth("correct");
             if (typeof p.spokenEncouragement === "string" && p.spokenEncouragement.trim()) {
               speakText(p.spokenEncouragement, { emotionOverride: "ENCOURAGING", cancelFirst: true });
+            } else if (typeof banner === "string" && banner.trim()) {
+              speakText(banner.replace(/[^\p{L}\p{N}\s,!.?-]/gu, ""), { emotionOverride: "ENCOURAGING", cancelFirst: true });
             }
             logTimelineEvent("ai_augmentation_applied", {
               hintThrottleMultiplier: nextHintMult,
@@ -2589,6 +2598,10 @@
         logTimelineEvent
       ]
     );
+    const executeTransponderCommandRef = useRef(executeTransponderCommand);
+    useEffect(() => {
+      executeTransponderCommandRef.current = executeTransponderCommand;
+    }, [executeTransponderCommand]);
     useEffect(() => {
       if (typeof window === "undefined") return;
       window.__RT_TUTOR_BRIDGE__ = {
@@ -2607,7 +2620,7 @@
         es.addEventListener("command", (ev) => {
           try {
             const cmd = JSON.parse(ev.data);
-            executeTransponderCommand(cmd);
+            executeTransponderCommandRef.current(cmd);
           } catch {
           }
         });
@@ -2617,7 +2630,7 @@
       return () => {
         if (es) es.close();
       };
-    }, [executeTransponderCommand]);
+    }, []);
     const exportStandaloneHtml = () => {
       const dictJson = JSON.stringify(DICTIONARIES);
       const aapNootJson = JSON.stringify(AAP_NOOT_MIES_WORDS);

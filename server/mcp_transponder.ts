@@ -980,8 +980,15 @@ if (isStdioMode) {
   });
 }
 
-export function startTransponderServer(port: number = PORT): Promise<http.Server> {
+export function startTransponderServer(port: number = PORT): Promise<http.Server | null> {
   return new Promise((resolve) => {
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(null);
+      } else {
+        throw err;
+      }
+    });
     server.listen(port, () => {
       const logFn = isStdioMode ? console.error : console.log;
       logFn(`🚀 [RT Tutor MCP Transponder] Live on http://localhost:${port}`);

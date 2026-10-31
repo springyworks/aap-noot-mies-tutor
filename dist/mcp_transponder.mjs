@@ -807,6 +807,13 @@ if (isStdioMode) {
 }
 function startTransponderServer(port = PORT) {
   return new Promise((resolve) => {
+    server.once("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        resolve(null);
+      } else {
+        throw err;
+      }
+    });
     server.listen(port, () => {
       const logFn = isStdioMode ? console.error : console.log;
       logFn(`\u{1F680} [RT Tutor MCP Transponder] Live on http://localhost:${port}`);
