@@ -586,6 +586,7 @@ var MIME_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".ico": "image/x-icon",
   ".svg": "image/svg+xml"
 };
 function readBody(req) {

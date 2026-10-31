@@ -728,6 +728,7 @@ const MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon',
   '.svg': 'image/svg+xml'
 };
 

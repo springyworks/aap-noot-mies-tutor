@@ -3319,6 +3319,7 @@ export default function RTTutor() {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>RT Tutor — Standalone Mobile & Aap Noot Mies Edition</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='15' fill='%23090414' stroke='%23a855f7' stroke-width='3.5'/%3E%3Cpath d='M 32 14 L 47 50 L 39.5 50 L 36.2 41 L 27.8 41 L 24.5 50 L 17 50 Z M 32 23.5 L 29.3 35.5 L 34.7 35.5 Z' fill='%23c084fc'/%3E%3Ccircle cx='32' cy='11' r='2.6' fill='%23f5d0fe'/%3E%3C/svg%3E" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     html, body { overscroll-behavior: none; touch-action: manipulation; user-select: none; -webkit-user-select: none; background: #0f172a; color: #f1f5f9; margin: 0; padding: 0; }

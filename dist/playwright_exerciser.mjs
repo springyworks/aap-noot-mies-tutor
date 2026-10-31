@@ -641,6 +641,7 @@ var init_mcp_transponder = __esm({
       ".png": "image/png",
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
+      ".ico": "image/x-icon",
       ".svg": "image/svg+xml"
     };
     server = http.createServer(async (req, res) => {
