@@ -1629,26 +1629,55 @@
       /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex flex-col items-start" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center gap-1.5" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "w-2 h-2 rounded-full", style: { backgroundColor: isSilent ? "#94a3b8" : meta.color } }), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-[11px] sm:text-xs font-bold tracking-wide text-slate-200" }, isSilent ? language === "nl" ? "Stille Wachtstand" : "Silent Standby" : language === "nl" ? meta.labelNL.replace(/^\d+\.\s*/, "") : meta.labelEN.replace(/^\d+\.\s*/, ""))), /* @__PURE__ */ react_shim_default.createElement("span", { className: "hidden sm:inline text-[10px] font-mono text-slate-400" }, isSilent ? language === "nl" ? "Tik of beweeg" : "Tap or move" : language === "nl" ? "Lieve begeleiding actief" : "Sweet guidance active"))
     ));
   };
+  var parseSharedView = () => {
+    const empty = { go: false };
+    if (typeof window === "undefined") return empty;
+    const raw = (window.location.hash || "").replace(/^#/, "") || window.location.search.replace(/^\?/, "");
+    if (!raw) return empty;
+    const p = new URLSearchParams(raw);
+    const out = { go: p.get("go") === "1" };
+    const cur = p.get("cur");
+    if (cur === "standard" || cur === "aapnootmies") out.cur = cur;
+    const lvl = p.get("lvl");
+    if (lvl !== null && /^[0-5]$/.test(lvl)) out.lvl = parseInt(lvl, 10);
+    const lang = p.get("lang");
+    if (lang === "nl" || lang === "en") out.lang = lang;
+    if (p.has("fft")) out.fft = p.get("fft") === "1";
+    if (p.has("dev")) out.dev = p.get("dev") === "1";
+    const fig = p.get("fig");
+    if (fig === "hybrid" || fig === "photo" || fig === "vector") out.fig = fig;
+    const intro = p.get("intro");
+    if (intro !== null && /^[0-2]$/.test(intro)) out.intro = parseInt(intro, 10);
+    if (p.has("kin")) out.kin = p.get("kin") === "1";
+    if (p.has("pin")) out.pin = p.get("pin") === "1";
+    const t = p.get("t");
+    if (t && /^[a-z]{1,12}$/i.test(t)) out.t = t.toLowerCase();
+    return out;
+  };
+  var SHARED_VIEW = parseSharedView();
   function RTTutor() {
-    const [started, setStarted] = useState(false);
-    const [curriculumMode, setCurriculumMode] = useState("standard");
-    const [level, setLevel] = useState(0);
-    const [language, setLanguage] = useState(() => localStorage.getItem("tutor_lang") || "nl");
+    const [started, setStarted] = useState(SHARED_VIEW.go);
+    const [curriculumMode, setCurriculumMode] = useState(SHARED_VIEW.cur ?? "standard");
+    const [level, setLevel] = useState(SHARED_VIEW.lvl ?? 0);
+    const [language, setLanguage] = useState(() => SHARED_VIEW.lang || localStorage.getItem("tutor_lang") || "nl");
     const [autoLevel, setAutoLevel] = useState(true);
-    const [inspectMode, setInspectMode] = useState(false);
-    const [showDevTools, setShowDevTools] = useState(false);
-    const [pinholeEnabled, setPinholeEnabled] = useState(false);
+    const [inspectMode, setInspectMode] = useState(SHARED_VIEW.fft ?? false);
+    const [showDevTools, setShowDevTools] = useState(SHARED_VIEW.dev ?? false);
+    const [shareToast, setShareToast] = useState(null);
+    const sharedTargetRef = useRef(SHARED_VIEW.t);
+    const [pinholeEnabled, setPinholeEnabled] = useState(SHARED_VIEW.pin ?? false);
     const [pointerPos, setPointerPos] = useState({
       x: typeof window !== "undefined" ? Math.round(window.innerWidth / 2) : 500,
       y: typeof window !== "undefined" ? Math.round(window.innerHeight / 2) : 400
     });
     const [introspectionLevel, setIntrospectionLevel] = useState(() => {
+      if (SHARED_VIEW.intro !== void 0) return SHARED_VIEW.intro;
       const saved = localStorage.getItem("tutor_introspect_lvl");
       return saved !== null ? parseInt(saved, 10) : 1;
     });
     const [tutorEmotion, setTutorEmotion] = useState("SERENE");
     const [isVoiceSilent, setIsVoiceSilent] = useState(false);
-    const [kineticMode, setKineticMode] = useState(false);
+    const [kineticMode, setKineticMode] = useState(SHARED_VIEW.kin ?? false);
     const [introspectionLog, setIntrospectionLog] = useState(
       "Systeem gereed. Leren is een raket lanceren in je brein!"
     );
@@ -1668,7 +1697,7 @@
       streakCount: 0,
       startedAt: 0
     });
-    const [anmFigureMode, setAnmFigureMode] = useState("hybrid");
+    const [anmFigureMode, setAnmFigureMode] = useState(SHARED_VIEW.fig ?? "hybrid");
     const [showLeesplankModal, setShowLeesplankModal] = useState(false);
     const [mcpConnected, setMcpConnected] = useState(false);
     const [drillThroughToast, setDrillThroughToast] = useState(null);
@@ -2016,6 +2045,56 @@
         generateRound(level, streak, curriculumMode);
       }
     }, [started, currentRound, level, streak, curriculumMode, generateRound]);
+    useEffect(() => {
+      const t = sharedTargetRef.current;
+      if (!t || !currentRound) return;
+      sharedTargetRef.current = void 0;
+      if (currentRound.target === t) return;
+      const pool = curriculumMode === "aapnootmies" ? AAP_NOOT_MIES_WORDS : DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS;
+      if (!pool.includes(t)) return;
+      const others = currentRound.options.filter((o) => o !== currentRound.target && o !== t);
+      const opts = [t, ...others].slice(0, currentRound.options.length).sort(() => 0.5 - Math.random());
+      setCurrentRound({ target: t, options: opts });
+    }, [currentRound, curriculumMode, language, level]);
+    const buildShareUrl = useCallback(() => {
+      const p = new URLSearchParams();
+      p.set("go", "1");
+      p.set("cur", curriculumMode);
+      p.set("lvl", String(level));
+      p.set("lang", language);
+      p.set("fig", anmFigureMode);
+      p.set("intro", String(introspectionLevel));
+      if (inspectMode) p.set("fft", "1");
+      if (showDevTools) p.set("dev", "1");
+      if (kineticMode) p.set("kin", "1");
+      if (pinholeEnabled) p.set("pin", "1");
+      if (currentRound?.target) p.set("t", currentRound.target);
+      const base = typeof window !== "undefined" ? window.location.href.split("#")[0].split("?")[0] : "";
+      return `${base}#${p.toString()}`;
+    }, [curriculumMode, level, language, anmFigureMode, introspectionLevel, inspectMode, showDevTools, kineticMode, pinholeEnabled, currentRound]);
+    useEffect(() => {
+      if (!started || typeof window === "undefined") return;
+      try {
+        window.history.replaceState(null, "", buildShareUrl());
+      } catch {
+      }
+    }, [started, buildShareUrl]);
+    const shareCurrentView = useCallback(async () => {
+      const url = buildShareUrl();
+      let msg = language === "nl" ? "\u{1F517} Link gekopieerd! Plak hem in een bericht." : "\u{1F517} Link copied! Paste it in a message.";
+      try {
+        if (typeof navigator !== "undefined" && navigator.share && window.innerWidth < 900) {
+          await navigator.share({ title: "Aap \xB7 Noot \xB7 Mies", text: language === "nl" ? "Kijk, dit zag ik!" : "Look, this is what I saw!", url });
+          return;
+        }
+        await navigator.clipboard.writeText(url);
+      } catch {
+        window.prompt(language === "nl" ? "Kopieer deze link:" : "Copy this link:", url);
+        msg = language === "nl" ? "\u{1F517} Link klaar" : "\u{1F517} Link ready";
+      }
+      setShareToast(msg);
+      setTimeout(() => setShareToast(null), 2600);
+    }, [buildShareUrl, language]);
     useEffect(() => {
       if (!started || !currentRound || showJsonModal) return;
       let rafId;
@@ -3220,6 +3299,14 @@
       ), streak > 0 && /* @__PURE__ */ react_shim_default.createElement("span", { className: "px-2 py-1 rounded-lg bg-amber-950/80 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs" }, "\u2B50 ", streak), /* @__PURE__ */ react_shim_default.createElement(
         "button",
         {
+          onClick: shareCurrentView,
+          title: language === "nl" ? "Deel deze weergave als link" : "Share this view as a link",
+          className: "px-2 py-1.5 rounded-lg text-xs border bg-purple-900/60 border-purple-400/70 text-purple-100 hover:bg-purple-800/80 transition-colors"
+        },
+        "\u{1F517}"
+      ), /* @__PURE__ */ react_shim_default.createElement(
+        "button",
+        {
           onClick: () => setShowDevTools(!showDevTools),
           title: "Ontwikkelaars- & Telemetrie-opties tonen/verbergen",
           className: `px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${showDevTools ? "bg-purple-900/80 border-purple-400 text-purple-100" : "bg-slate-800/70 border-slate-700/70 text-slate-400 hover:text-slate-200"}`
@@ -3327,6 +3414,7 @@
           }
         ), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-[8px] text-slate-500" }, b.freqHz));
       }))),
+      shareToast && /* @__PURE__ */ react_shim_default.createElement("div", { className: "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 text-sm font-bold shadow-2xl" }, shareToast),
       drillThroughToast && /* @__PURE__ */ react_shim_default.createElement("div", { className: "fixed bottom-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 font-mono text-xs shadow-2xl flex items-center gap-3" }, /* @__PURE__ */ react_shim_default.createElement("span", null, drillThroughToast), /* @__PURE__ */ react_shim_default.createElement(
         "button",
         {

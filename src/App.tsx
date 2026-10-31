@@ -2042,18 +2042,68 @@ const TutorAvatarHeader: React.FC<TutorAvatarProps> = ({
 // MAIN APPLICATION COMPONENT: RTTutor
 // ============================================================================
 
+// ============================================================================
+// DEEP-LINK SHARING: the full app state lives in the URL hash, e.g.
+//   #go=1&cur=standard&lvl=0&lang=nl&fft=1&dev=1&fig=hybrid&intro=1&kin=0&pin=0&t=aap
+// Copy the address bar (or press the 🔗 button) and anyone opening it sees the same view.
+// ============================================================================
+
+interface SharedViewState {
+  go: boolean;
+  cur?: CurriculumMode;
+  lvl?: number;
+  lang?: LanguageCode;
+  fft?: boolean;
+  dev?: boolean;
+  fig?: AnmFigureMode;
+  intro?: IntrospectionLevel;
+  kin?: boolean;
+  pin?: boolean;
+  t?: string;
+}
+
+const parseSharedView = (): SharedViewState => {
+  const empty: SharedViewState = { go: false };
+  if (typeof window === 'undefined') return empty;
+  const raw = (window.location.hash || '').replace(/^#/, '') || window.location.search.replace(/^\?/, '');
+  if (!raw) return empty;
+  const p = new URLSearchParams(raw);
+  const out: SharedViewState = { go: p.get('go') === '1' };
+  const cur = p.get('cur');
+  if (cur === 'standard' || cur === 'aapnootmies') out.cur = cur;
+  const lvl = p.get('lvl');
+  if (lvl !== null && /^[0-5]$/.test(lvl)) out.lvl = parseInt(lvl, 10);
+  const lang = p.get('lang');
+  if (lang === 'nl' || lang === 'en') out.lang = lang;
+  if (p.has('fft')) out.fft = p.get('fft') === '1';
+  if (p.has('dev')) out.dev = p.get('dev') === '1';
+  const fig = p.get('fig');
+  if (fig === 'hybrid' || fig === 'photo' || fig === 'vector') out.fig = fig;
+  const intro = p.get('intro');
+  if (intro !== null && /^[0-2]$/.test(intro)) out.intro = parseInt(intro, 10) as IntrospectionLevel;
+  if (p.has('kin')) out.kin = p.get('kin') === '1';
+  if (p.has('pin')) out.pin = p.get('pin') === '1';
+  const t = p.get('t');
+  if (t && /^[a-z]{1,12}$/i.test(t)) out.t = t.toLowerCase();
+  return out;
+};
+
+const SHARED_VIEW: SharedViewState = parseSharedView();
+
 export default function RTTutor() {
-  // Core Persistent States — Always default to Level 0 ('standard' mode, single letters with Leesplankje figures)
-  const [started, setStarted] = useState<boolean>(false);
-  const [curriculumMode, setCurriculumMode] = useState<CurriculumMode>('standard');
-  const [level, setLevel] = useState<number>(0);
-  const [language, setLanguage] = useState<LanguageCode>(() => (localStorage.getItem('tutor_lang') as LanguageCode) || 'nl');
+  // Core Persistent States — Default Level 0 ('standard' mode, single letters with Leesplankje figures), unless a shared deep link says otherwise
+  const [started, setStarted] = useState<boolean>(SHARED_VIEW.go);
+  const [curriculumMode, setCurriculumMode] = useState<CurriculumMode>(SHARED_VIEW.cur ?? 'standard');
+  const [level, setLevel] = useState<number>(SHARED_VIEW.lvl ?? 0);
+  const [language, setLanguage] = useState<LanguageCode>(() => SHARED_VIEW.lang || (localStorage.getItem('tutor_lang') as LanguageCode) || 'nl');
   const [autoLevel, setAutoLevel] = useState<boolean>(true);
-  const [inspectMode, setInspectMode] = useState<boolean>(false);
-  const [showDevTools, setShowDevTools] = useState<boolean>(false);
+  const [inspectMode, setInspectMode] = useState<boolean>(SHARED_VIEW.fft ?? false);
+  const [showDevTools, setShowDevTools] = useState<boolean>(SHARED_VIEW.dev ?? false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const sharedTargetRef = useRef<string | undefined>(SHARED_VIEW.t);
 
   // Usability Research Pinhole Spotlight State
-  const [pinholeEnabled, setPinholeEnabled] = useState<boolean>(false);
+  const [pinholeEnabled, setPinholeEnabled] = useState<boolean>(SHARED_VIEW.pin ?? false);
   const [pointerPos, setPointerPos] = useState<{ x: number; y: number }>({
     x: typeof window !== 'undefined' ? Math.round(window.innerWidth / 2) : 500,
     y: typeof window !== 'undefined' ? Math.round(window.innerHeight / 2) : 400
@@ -2061,12 +2111,13 @@ export default function RTTutor() {
 
   // Advanced Tutoring & Introspection States
   const [introspectionLevel, setIntrospectionLevel] = useState<IntrospectionLevel>(() => {
+    if (SHARED_VIEW.intro !== undefined) return SHARED_VIEW.intro;
     const saved = localStorage.getItem('tutor_introspect_lvl');
     return saved !== null ? (parseInt(saved, 10) as IntrospectionLevel) : 1;
   });
   const [tutorEmotion, setTutorEmotion] = useState<TutorEmotion>('SERENE');
   const [isVoiceSilent, setIsVoiceSilent] = useState<boolean>(false);
-  const [kineticMode, setKineticMode] = useState<boolean>(false);
+  const [kineticMode, setKineticMode] = useState<boolean>(SHARED_VIEW.kin ?? false);
   const [introspectionLog, setIntrospectionLog] = useState<string>(
     'Systeem gereed. Leren is een raket lanceren in je brein!'
   );
@@ -2090,7 +2141,7 @@ export default function RTTutor() {
   });
 
   // Aap-Noot-Mies Cut-Out Figure Rendering Mode & Leesplankje Overview Modal
-  const [anmFigureMode, setAnmFigureMode] = useState<AnmFigureMode>('hybrid');
+  const [anmFigureMode, setAnmFigureMode] = useState<AnmFigureMode>(SHARED_VIEW.fig ?? 'hybrid');
   const [showLeesplankModal, setShowLeesplankModal] = useState<boolean>(false);
   const [mcpConnected, setMcpConnected] = useState<boolean>(false);
   const [drillThroughToast, setDrillThroughToast] = useState<string | null>(null);
@@ -2496,6 +2547,65 @@ export default function RTTutor() {
       generateRound(level, streak, curriculumMode);
     }
   }, [started, currentRound, level, streak, curriculumMode, generateRound]);
+
+  // DEEP LINK: apply a shared target word once, on the very first round of a shared view
+  useEffect(() => {
+    const t = sharedTargetRef.current;
+    if (!t || !currentRound) return;
+    sharedTargetRef.current = undefined;
+    if (currentRound.target === t) return;
+    const pool = curriculumMode === 'aapnootmies'
+      ? AAP_NOOT_MIES_WORDS
+      : (DICTIONARIES[language][level] || AAP_NOOT_MIES_WORDS);
+    if (!pool.includes(t)) return;
+    const others = currentRound.options.filter(o => o !== currentRound.target && o !== t);
+    const opts = [t, ...others].slice(0, currentRound.options.length).sort(() => 0.5 - Math.random());
+    setCurrentRound({ target: t, options: opts });
+  }, [currentRound, curriculumMode, language, level]);
+
+  // DEEP LINK: keep the address bar a live, shareable "status drop" of the current view
+  const buildShareUrl = useCallback((): string => {
+    const p = new URLSearchParams();
+    p.set('go', '1');
+    p.set('cur', curriculumMode);
+    p.set('lvl', String(level));
+    p.set('lang', language);
+    p.set('fig', anmFigureMode);
+    p.set('intro', String(introspectionLevel));
+    if (inspectMode) p.set('fft', '1');
+    if (showDevTools) p.set('dev', '1');
+    if (kineticMode) p.set('kin', '1');
+    if (pinholeEnabled) p.set('pin', '1');
+    if (currentRound?.target) p.set('t', currentRound.target);
+    const base = typeof window !== 'undefined' ? window.location.href.split('#')[0].split('?')[0] : '';
+    return `${base}#${p.toString()}`;
+  }, [curriculumMode, level, language, anmFigureMode, introspectionLevel, inspectMode, showDevTools, kineticMode, pinholeEnabled, currentRound]);
+
+  useEffect(() => {
+    if (!started || typeof window === 'undefined') return;
+    try {
+      window.history.replaceState(null, '', buildShareUrl());
+    } catch {
+      // ignore sandboxed iframes without history access
+    }
+  }, [started, buildShareUrl]);
+
+  const shareCurrentView = useCallback(async () => {
+    const url = buildShareUrl();
+    let msg = language === 'nl' ? '🔗 Link gekopieerd! Plak hem in een bericht.' : '🔗 Link copied! Paste it in a message.';
+    try {
+      if (typeof navigator !== 'undefined' && (navigator as Navigator & { share?: unknown }).share && window.innerWidth < 900) {
+        await navigator.share({ title: 'Aap · Noot · Mies', text: language === 'nl' ? 'Kijk, dit zag ik!' : 'Look, this is what I saw!', url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt(language === 'nl' ? 'Kopieer deze link:' : 'Copy this link:', url);
+      msg = language === 'nl' ? '🔗 Link klaar' : '🔗 Link ready';
+    }
+    setShareToast(msg);
+    setTimeout(() => setShareToast(null), 2600);
+  }, [buildShareUrl, language]);
 
   // ==========================================================================
   // REQUESTANIMATIONFRAME LOOP FOR SMOOTH 2D KINETIC LISSAJOUS MOTION
@@ -3994,6 +4104,13 @@ export default function RTTutor() {
               </span>
             )}
             <button
+              onClick={shareCurrentView}
+              title={language === 'nl' ? 'Deel deze weergave als link' : 'Share this view as a link'}
+              className="px-2 py-1.5 rounded-lg text-xs border bg-purple-900/60 border-purple-400/70 text-purple-100 hover:bg-purple-800/80 transition-colors"
+            >
+              🔗
+            </button>
+            <button
               onClick={() => setShowDevTools(!showDevTools)}
               title="Ontwikkelaars- & Telemetrie-opties tonen/verbergen"
               className={`px-2 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
@@ -4175,6 +4292,11 @@ export default function RTTutor() {
       {/* ==================================================================== */}
       {/* CTRL+SHIFT+ALT+G DRILL-THROUGH TOAST & EXTERNAL AI CO-PILOT BANNER   */}
       {/* ==================================================================== */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 text-sm font-bold shadow-2xl">
+          {shareToast}
+        </div>
+      )}
       {drillThroughToast && (
         <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-purple-950/95 border-2 border-purple-400 text-purple-100 font-mono text-xs shadow-2xl flex items-center gap-3">
           <span>{drillThroughToast}</span>
