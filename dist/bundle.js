@@ -673,41 +673,67 @@
     anmFigureMode = "hybrid"
   }) => {
     const hoverBoost = Math.min(1, hoverDwellMs / 1800);
-    const effectiveAliveness = Math.min(1, Math.max(0, aliveness + hoverBoost * 0.75 + (isHovered ? 0.22 : 0)));
+    const effectiveAliveness = Math.min(1, Math.max(0.32, aliveness + hoverBoost * 0.75 + (isHovered ? 0.25 : 0)));
     const goldenEvolution = isTarget ? Math.min(1, hoverDwellMs / 2600) : 0;
     const devStage = isTarget ? hoverDwellMs > 2400 ? 4 : hoverDwellMs > 1300 ? 3 : hoverDwellMs > 450 ? 2 : 1 : hoverDwellMs > 900 ? 2 : 1;
-    if (effectiveAliveness <= 0.01 && level > 0 && !isHovered) return null;
     const drawProgress = Math.min(1, effectiveAliveness / 0.45);
     const dashOffset = Math.round(320 * (1 - drawProgress));
-    const fillProgress = Math.min(1, Math.max(0, (effectiveAliveness - 0.25) / 0.5));
-    const motionAmp = Math.min(1.6, Math.max(0.1, effectiveAliveness - 0.15 + goldenEvolution * 0.7));
+    const fillProgress = Math.min(1, Math.max(0.25, (effectiveAliveness - 0.15) / 0.5));
+    const motionAmp = Math.min(1.6, Math.max(0.2, effectiveAliveness - 0.1 + goldenEvolution * 0.7));
     const w = word.toLowerCase();
+    const LEESPLANK_WORD_ALIASES = {
+      schaap: "lam",
+      vlam: "vuur",
+      stoom: "vuur",
+      kat: "mies",
+      cat: "mies",
+      vos: "does",
+      fox: "does",
+      hond: "kees",
+      dog: "kees",
+      koe: "weide",
+      cow: "weide",
+      boer: "teun",
+      hoed: "teun",
+      hat: "teun",
+      vogel: "duif",
+      vleugel: "duif",
+      kip: "duif",
+      huis: "hok",
+      dak: "hok",
+      stoep: "hok",
+      schuur: "hok",
+      school: "hok",
+      deur: "hok",
+      boom: "schapen",
+      hout: "schapen",
+      auto: "bok",
+      car: "bok",
+      koek: "noot",
+      bal: "noot",
+      zon: "vuur",
+      sun: "vuur",
+      boy: "wim",
+      vis: "weide",
+      voet: "wim",
+      vinger: "wim",
+      bed: "zus",
+      stoel: "zus",
+      bank: "zus",
+      boek: "wim",
+      bord: "wim",
+      doos: "wim"
+    };
+    const anmFigure = AAP_NOOT_MIES_FIGURES[w] || (LEESPLANK_WORD_ALIASES[w] ? AAP_NOOT_MIES_FIGURES[LEESPLANK_WORD_ALIASES[w]] : void 0);
     const getIllustrationType = (str) => {
       if (str.length === 1) return "letter_constellation";
-      if (str === "aap") return "jetses_aap";
-      if (str === "noot") return "jetses_noot";
-      if (str === "mies") return "jetses_mies";
-      if (str === "wim") return "jetses_wim";
-      if (str === "zus") return "jetses_zus";
-      if (str === "jet") return "jetses_jet";
-      if (str === "teun") return "jetses_teun";
-      if (str === "vuur") return "jetses_vuur";
-      if (str === "gijs") return "jetses_gijs";
-      if (str === "lam") return "jetses_lam";
-      if (str === "kees") return "jetses_kees";
-      if (str === "bok") return "jetses_bok";
-      if (str === "weide") return "jetses_weide";
-      if (str === "does") return "jetses_does";
-      if (str === "hok") return "jetses_hok";
-      if (str === "duif") return "jetses_duif";
-      if (str === "schapen") return "jetses_schapen";
+      const resolved = LEESPLANK_WORD_ALIASES[str] || str;
+      if (AAP_NOOT_MIES_FIGURES[resolved]) return `jetses_${resolved}`;
       if (["boy", "boer", "aunt"].includes(str)) return "friendly_character";
-      if (["schaap"].includes(str)) return "jetses_lam";
       if (["vogel", "vleugel", "kip", "bat", "beak"].includes(str)) return "bird";
       if (["kat", "cat", "vos", "fox"].includes(str)) return "cat";
       if (["hond", "dog", "beer", "bear", "koe", "cow", "haas", "hert", "boar"].includes(str)) return "animal";
       if (["zon", "sun", "august", "dawn", "days"].includes(str)) return "sun";
-      if (["vlam"].includes(str)) return "jetses_vuur";
       if (["boot", "boat", "schip", "zee", "coal", "coat"].includes(str)) return "boat";
       if (["boom", "hout", "autumn", "tak"].includes(str)) return "tree";
       if (["deur"].includes(str)) return "door";
@@ -725,15 +751,14 @@
     const primaryStroke = isTarget && goldenEvolution > 0.2 ? "#f3c663" : isCandidateMatch || isHovered ? "#d4b483" : "#64748b";
     const secondaryStroke = isTarget && goldenEvolution > 0.4 ? "#7eaba0" : isCandidateMatch ? "#7eaba0" : "#475569";
     const accentColor = isTarget ? "#f59e0b" : "#8a99b8";
-    const sway = Math.sin(animTick * 2.4) * 6 * motionAmp;
-    const bob = Math.cos(animTick * 1.9) * 4 * motionAmp;
-    const pulse = 1 + Math.sin(animTick * 3.2) * 0.06 * motionAmp + goldenEvolution * 0.08;
+    const sway = Math.sin(animTick * 2.4) * 5 * motionAmp;
+    const bob = Math.cos(animTick * 1.9) * 3.5 * motionAmp;
+    const pulse = 1 + Math.sin(animTick * 3.2) * 0.05 * motionAmp + goldenEvolution * 0.08;
     const wingAngle = Math.sin(animTick * 4.8) * 16 * motionAmp;
-    const anmFigure = AAP_NOOT_MIES_FIGURES[w] || (w === "schaap" ? AAP_NOOT_MIES_FIGURES["lam"] : void 0) || (w === "vlam" ? AAP_NOOT_MIES_FIGURES["vuur"] : void 0);
-    const showCutoutImage = Boolean(anmFigure && anmFigureMode !== "vector");
+    const showCutoutImage = Boolean(anmFigure);
     const showVectorArt = !anmFigure || anmFigureMode !== "photo";
-    const imgW = anmFigure?.isLandscape ? 148 : 106;
-    const imgH = anmFigure?.isLandscape ? 88 : 96;
+    const imgW = anmFigure?.isLandscape ? 154 : 118;
+    const imgH = anmFigure?.isLandscape ? 92 : 98;
     const imgX = -imgW / 2;
     const imgY = -imgH / 2;
     const frameDashOffset = Math.round(440 * (1 - drawProgress));
@@ -756,25 +781,25 @@
         viewBox: "0 0 200 140",
         className: "absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible",
         style: {
-          opacity: level === 0 ? Math.max(0.32, effectiveAliveness * 0.72) : Math.min(0.94, (showCutoutImage ? 0.24 : 0) + effectiveAliveness * 0.64 + goldenEvolution * 0.26),
+          opacity: level === 0 ? Math.max(0.45, effectiveAliveness * 0.85) : Math.min(0.98, (showCutoutImage ? 0.68 : 0.25) + effectiveAliveness * 0.3 + goldenEvolution * 0.2),
           transition: "opacity 0.2s linear"
         }
       },
       /* @__PURE__ */ react_shim_default.createElement("defs", null, /* @__PURE__ */ react_shim_default.createElement("radialGradient", { id: `glow-${w}`, cx: "50%", cy: "50%", r: "50%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: primaryStroke, stopOpacity: 0.28 * fillProgress + goldenEvolution * 0.25 }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: primaryStroke, stopOpacity: 0 })), showCutoutImage && /* @__PURE__ */ react_shim_default.createElement(react_shim_default.Fragment, null, /* @__PURE__ */ react_shim_default.createElement("clipPath", { id: `anm-clip-${w}` }, /* @__PURE__ */ react_shim_default.createElement("rect", { x: imgX, y: imgY, width: imgW, height: imgH, rx: "14", ry: "14" })), /* @__PURE__ */ react_shim_default.createElement("radialGradient", { id: `lamp-blob1-${w}`, cx: "50%", cy: "50%", r: "50%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: lampWarmth, stopOpacity: "0.62" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "55%", stopColor: lampPrimary, stopOpacity: "0.34" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: lampPrimary, stopOpacity: "0" })), /* @__PURE__ */ react_shim_default.createElement("radialGradient", { id: `lamp-blob2-${w}`, cx: "50%", cy: "50%", r: "50%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: lampSecondary, stopOpacity: "0.54" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "60%", stopColor: lampPrimary, stopOpacity: "0.24" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: lampSecondary, stopOpacity: "0" })), /* @__PURE__ */ react_shim_default.createElement("linearGradient", { id: `lamp-warm-back-${w}`, x1: "0%", y1: "100%", x2: "100%", y2: "0%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: lampPrimary, stopOpacity: "0.22" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "50%", stopColor: "#1e293b", stopOpacity: "0.12" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: lampSecondary, stopOpacity: "0.20" })), /* @__PURE__ */ react_shim_default.createElement("linearGradient", { id: `anm-vignette-${w}`, x1: "0%", y1: "0%", x2: "0%", y2: "100%" }, /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "0%", stopColor: "#0f172a", stopOpacity: "0.06" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "65%", stopColor: "#0f172a", stopOpacity: "0.14" }), /* @__PURE__ */ react_shim_default.createElement("stop", { offset: "100%", stopColor: "#0f172a", stopOpacity: "0.44" })))),
-      /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "100", cy: "70", rx: 76 * pulse, ry: 50 * pulse, fill: `url(#glow-${w})` }),
+      /* @__PURE__ */ react_shim_default.createElement("ellipse", { cx: "100", cy: "54", rx: 76 * pulse, ry: 46 * pulse, fill: `url(#glow-${w})` }),
       showCutoutImage && anmFigure && /* @__PURE__ */ react_shim_default.createElement(
         "g",
         {
-          transform: `translate(${(100 + sway * 0.45).toFixed(2)}, ${(70 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.9 + effectiveAliveness * 0.12 + goldenEvolution * 0.08).toFixed(3)})`
+          transform: `translate(${(100 + sway * 0.45).toFixed(2)}, ${(53 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.96 + effectiveAliveness * 0.08 + goldenEvolution * 0.08).toFixed(3)})`
         },
         /* @__PURE__ */ react_shim_default.createElement(
           "g",
           {
             clipPath: `url(#anm-clip-${w})`,
-            opacity: Math.min(0.98, 0.34 + effectiveAliveness * 0.5 + goldenEvolution * 0.16)
+            opacity: Math.min(1, 0.78 + effectiveAliveness * 0.2 + goldenEvolution * 0.1)
           },
           /* @__PURE__ */ react_shim_default.createElement("rect", { x: imgX, y: imgY, width: imgW, height: imgH, fill: `url(#lamp-warm-back-${w})` }),
-          /* @__PURE__ */ react_shim_default.createElement("g", { opacity: Math.min(0.88, 0.38 + effectiveAliveness * 0.32 + goldenEvolution * 0.24) }, /* @__PURE__ */ react_shim_default.createElement(
+          /* @__PURE__ */ react_shim_default.createElement("g", { opacity: Math.min(0.92, 0.55 + effectiveAliveness * 0.25 + goldenEvolution * 0.2) }, /* @__PURE__ */ react_shim_default.createElement(
             "ellipse",
             {
               cx: blob1X.toFixed(2),
@@ -812,10 +837,9 @@
               y: imgY,
               width: imgW,
               height: imgH,
-              preserveAspectRatio: "xMidYMid slice"
+              preserveAspectRatio: "xMidYMid meet"
             }
-          ),
-          /* @__PURE__ */ react_shim_default.createElement("rect", { x: imgX, y: imgY, width: imgW, height: imgH, fill: `url(#anm-vignette-${w})` })
+          )
         ),
         /* @__PURE__ */ react_shim_default.createElement(
           "rect",
@@ -864,7 +888,7 @@
         return /* @__PURE__ */ react_shim_default.createElement("g", { key: orbIdx, transform: `translate(${ox}, ${oy})` }, /* @__PURE__ */ react_shim_default.createElement("circle", { r: 4 + goldenEvolution * 2, fill: primaryStroke, opacity: "0.4" }), /* @__PURE__ */ react_shim_default.createElement("circle", { r: "2.2", fill: "#fffbeb" }));
       })),
       devStage >= 3 && isTarget && /* @__PURE__ */ react_shim_default.createElement("g", { transform: `translate(100, ${16 + bob * 0.4}) scale(${0.85 + goldenEvolution * 0.25})`, opacity: goldenEvolution }, /* @__PURE__ */ react_shim_default.createElement("polygon", { points: "-14,6 -9,-6 -3,2 0,-9 3,2 9,-6 14,6", fill: "#f59e0b", fillOpacity: "0.45", stroke: "#fde68a", strokeWidth: "1.5" })),
-      showVectorArt && /* @__PURE__ */ react_shim_default.createElement("g", { opacity: showCutoutImage ? 0.42 + goldenEvolution * 0.38 : 1 }, kind === "jetses_aap" && /* @__PURE__ */ react_shim_default.createElement("g", { transform: `translate(100, ${74 + bob * 0.4}) scale(${pulse})` }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -46 24 L 46 20", stroke: accentColor, strokeWidth: "4", strokeLinecap: "round", strokeDasharray: "320", strokeDashoffset: dashOffset }), /* @__PURE__ */ react_shim_default.createElement(
+      showVectorArt && /* @__PURE__ */ react_shim_default.createElement("g", { opacity: showCutoutImage ? anmFigureMode === "vector" ? 0.35 : 0.16 + goldenEvolution * 0.22 : 1 }, kind === "jetses_aap" && /* @__PURE__ */ react_shim_default.createElement("g", { transform: `translate(100, ${74 + bob * 0.4}) scale(${pulse})` }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M -46 24 L 46 20", stroke: accentColor, strokeWidth: "4", strokeLinecap: "round", strokeDasharray: "320", strokeDashoffset: dashOffset }), /* @__PURE__ */ react_shim_default.createElement(
         "path",
         {
           d: `M 12 20 C 34 26 ${44 + sway} 8 ${36 + bob} -8 C 30 -18 20 -12 24 -4`,
@@ -2933,6 +2957,7 @@
       if (mode === "aapnootmies") {
         setLanguage("nl");
         localStorage.setItem("tutor_lang", "nl");
+        setAnmFigureMode("hybrid");
         setTutorEmotion("EAGER");
       }
       setTimeout(() => generateRound(level, streak, mode), 40);
@@ -3343,7 +3368,7 @@
               borderColor: isExactTarget && goldenGlowIntensity > 0.25 ? `rgba(243, 198, 99, ${0.45 + goldenGlowIntensity * 0.55})` : void 0,
               boxShadow: isExactTarget && goldenGlowIntensity > 0.3 ? `0 0 ${Math.round(28 * goldenGlowIntensity)}px rgba(245, 158, 11, ${0.35 * goldenGlowIntensity})` : void 0
             },
-            className: "relative group overflow-hidden h-32 sm:h-40 md:h-44 rounded-2xl sm:rounded-3xl border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex items-center justify-center text-3xl sm:text-5xl md:text-6xl font-bold transition-colors active:scale-95"
+            className: "relative group overflow-hidden h-40 sm:h-48 md:h-52 rounded-2xl sm:rounded-3xl border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex flex-col items-center justify-end pb-2 sm:pb-2.5 text-2xl sm:text-4xl md:text-5xl font-bold transition-colors active:scale-95"
           },
           /* @__PURE__ */ react_shim_default.createElement(
             CellSvgUnderlay,
@@ -3371,7 +3396,7 @@
             }
           ),
           kineticMode && /* @__PURE__ */ react_shim_default.createElement("svg", { className: "absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] pointer-events-none opacity-25 group-hover:opacity-60 transition-opacity", viewBox: "0 0 100 100", preserveAspectRatio: "none" }, /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 18 L 2 2 L 18 2", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 2 L 98 2 L 98 18", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 2 82 L 2 98 L 18 98", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" }), /* @__PURE__ */ react_shim_default.createElement("path", { d: "M 82 98 L 98 98 L 98 82", fill: "none", stroke: "#d4b483", strokeWidth: "1.5" })),
-          /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative z-10 flex tracking-wide drop-shadow px-3.5 py-1 rounded-2xl bg-slate-900/60 backdrop-blur-[1.5px] border border-slate-700/40" }, renderWordWithSmartColors(word, currentRound.target))
+          /* @__PURE__ */ react_shim_default.createElement("div", { className: "relative z-10 flex tracking-wide drop-shadow px-3.5 py-0.5 rounded-xl bg-slate-950/75 backdrop-blur-[1px] border border-amber-500/25 shadow-md" }, renderWordWithSmartColors(word, currentRound.target))
         );
       }))),
       /* @__PURE__ */ react_shim_default.createElement("footer", { className: "relative z-30 mx-3 sm:mx-4 mb-3 px-3.5 py-2 rounded-xl bg-slate-800/75 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-slate-300" }, /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex items-center gap-2 truncate max-w-full sm:max-w-[60%]" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300 font-bold uppercase shrink-0" }, isVoiceSilent ? "\u{1F507} Standby:" : `\u{1F5E3}\uFE0F Introspect (L${introspectionLevel}):`), /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-slate-200 truncate" }, introspectionLog)), /* @__PURE__ */ react_shim_default.createElement("div", { className: "flex flex-wrap items-center gap-3 text-[11px] text-slate-400 shrink-0" }, /* @__PURE__ */ react_shim_default.createElement("span", { className: "text-amber-300/90" }, "Hover: ", hoveredWord ? `"${hoveredWord}" (${cellDwellState[hoveredWord] || 0}ms)` : "\u2014"), /* @__PURE__ */ react_shim_default.createElement("span", null, "2D-FFT: ", liveDerivedData.fft2D.dominantFrequencyXHz, "Hz"), /* @__PURE__ */ react_shim_default.createElement("span", null, "Throttle: ", (baseThreshold / 1e3).toFixed(1), "s"), /* @__PURE__ */ react_shim_default.createElement("span", null, "Streak: ", streak, " \u{1F680}"), /* @__PURE__ */ react_shim_default.createElement("span", null, "PTS: ", telemetryData.current.length))),

@@ -622,9 +622,8 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
   animTick,
   anmFigureMode = 'hybrid'
 }) => {
-  // Combine time-based aliveness with hover-driven developmental evolution!
   const hoverBoost = Math.min(1, hoverDwellMs / 1800);
-  const effectiveAliveness = Math.min(1, Math.max(0, aliveness + hoverBoost * 0.75 + (isHovered ? 0.22 : 0)));
+  const effectiveAliveness = Math.min(1, Math.max(0.32, aliveness + hoverBoost * 0.75 + (isHovered ? 0.25 : 0)));
 
   // Golden Cell Evolution Stage (1..4) when hovering the correct target cell
   const goldenEvolution = isTarget ? Math.min(1, hoverDwellMs / 2600) : 0;
@@ -632,48 +631,75 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
     ? (hoverDwellMs > 2400 ? 4 : hoverDwellMs > 1300 ? 3 : hoverDwellMs > 450 ? 2 : 1)
     : (hoverDwellMs > 900 ? 2 : 1);
 
-  if (effectiveAliveness <= 0.01 && level > 0 && !isHovered) return null;
-
   // Stage 1: Line drawing traces itself
   const drawProgress = Math.min(1, effectiveAliveness / 0.45);
   const dashOffset = Math.round(320 * (1 - drawProgress));
 
   // Stage 2: European color fill & organic motion
-  const fillProgress = Math.min(1, Math.max(0, (effectiveAliveness - 0.25) / 0.5));
-  const motionAmp = Math.min(1.6, Math.max(0.1, (effectiveAliveness - 0.15) + goldenEvolution * 0.7));
+  const fillProgress = Math.min(1, Math.max(0.25, (effectiveAliveness - 0.15) / 0.5));
+  const motionAmp = Math.min(1.6, Math.max(0.2, (effectiveAliveness - 0.10) + goldenEvolution * 0.7));
 
   const w = word.toLowerCase();
 
-  // Route all 17 classic Cornelis Jetses / Hoogeveen "Leesplankje" words + general vocabulary to bespoke figures
+  // Map all 17 classic Leesplankje words + Dutch/English L1-L5 vocabulary to a Leesplankje WebP figure!
+  const LEESPLANK_WORD_ALIASES: Record<string, string> = {
+    schaap: 'lam',
+    vlam: 'vuur',
+    stoom: 'vuur',
+    kat: 'mies',
+    cat: 'mies',
+    vos: 'does',
+    fox: 'does',
+    hond: 'kees',
+    dog: 'kees',
+    koe: 'weide',
+    cow: 'weide',
+    boer: 'teun',
+    hoed: 'teun',
+    hat: 'teun',
+    vogel: 'duif',
+    vleugel: 'duif',
+    kip: 'duif',
+    huis: 'hok',
+    dak: 'hok',
+    stoep: 'hok',
+    schuur: 'hok',
+    school: 'hok',
+    deur: 'hok',
+    boom: 'schapen',
+    hout: 'schapen',
+    auto: 'bok',
+    car: 'bok',
+    koek: 'noot',
+    bal: 'noot',
+    zon: 'vuur',
+    sun: 'vuur',
+    boy: 'wim',
+    vis: 'weide',
+    voet: 'wim',
+    vinger: 'wim',
+    bed: 'zus',
+    stoel: 'zus',
+    bank: 'zus',
+    boek: 'wim',
+    bord: 'wim',
+    doos: 'wim'
+  };
+
+  // Lookup separate cut-out Leesplankje WebP figure image (17 classic figures + vocabulary aliases)
+  const anmFigure: AapNootMiesFigureAsset | undefined =
+    AAP_NOOT_MIES_FIGURES[w] ||
+    (LEESPLANK_WORD_ALIASES[w] ? AAP_NOOT_MIES_FIGURES[LEESPLANK_WORD_ALIASES[w]] : undefined);
+
   const getIllustrationType = (str: string): string => {
     if (str.length === 1) return 'letter_constellation';
-    // 17 Iconic Hoogeveen / Cornelis Jetses Leesplankje Figures (Public Domain Homage)
-    if (str === 'aap') return 'jetses_aap';
-    if (str === 'noot') return 'jetses_noot';
-    if (str === 'mies') return 'jetses_mies';
-    if (str === 'wim') return 'jetses_wim';
-    if (str === 'zus') return 'jetses_zus';
-    if (str === 'jet') return 'jetses_jet';
-    if (str === 'teun') return 'jetses_teun';
-    if (str === 'vuur') return 'jetses_vuur';
-    if (str === 'gijs') return 'jetses_gijs';
-    if (str === 'lam') return 'jetses_lam';
-    if (str === 'kees') return 'jetses_kees';
-    if (str === 'bok') return 'jetses_bok';
-    if (str === 'weide') return 'jetses_weide';
-    if (str === 'does') return 'jetses_does';
-    if (str === 'hok') return 'jetses_hok';
-    if (str === 'duif') return 'jetses_duif';
-    if (str === 'schapen') return 'jetses_schapen';
-
-    // Other Dutch & English curriculum words
+    const resolved = LEESPLANK_WORD_ALIASES[str] || str;
+    if (AAP_NOOT_MIES_FIGURES[resolved]) return `jetses_${resolved}`;
     if (['boy', 'boer', 'aunt'].includes(str)) return 'friendly_character';
-    if (['schaap'].includes(str)) return 'jetses_lam';
     if (['vogel', 'vleugel', 'kip', 'bat', 'beak'].includes(str)) return 'bird';
     if (['kat', 'cat', 'vos', 'fox'].includes(str)) return 'cat';
     if (['hond', 'dog', 'beer', 'bear', 'koe', 'cow', 'haas', 'hert', 'boar'].includes(str)) return 'animal';
     if (['zon', 'sun', 'august', 'dawn', 'days'].includes(str)) return 'sun';
-    if (['vlam'].includes(str)) return 'jetses_vuur';
     if (['boot', 'boat', 'schip', 'zee', 'coal', 'coat'].includes(str)) return 'boat';
     if (['boom', 'hout', 'autumn', 'tak'].includes(str)) return 'tree';
     if (['deur'].includes(str)) return 'door';
@@ -697,21 +723,16 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
     : (isCandidateMatch ? '#7eaba0' : '#475569');
   const accentColor = isTarget ? '#f59e0b' : '#8a99b8';
 
-  const sway = Math.sin(animTick * 2.4) * 6 * motionAmp;
-  const bob = Math.cos(animTick * 1.9) * 4 * motionAmp;
-  const pulse = 1 + Math.sin(animTick * 3.2) * 0.06 * motionAmp + goldenEvolution * 0.08;
+  const sway = Math.sin(animTick * 2.4) * 5 * motionAmp;
+  const bob = Math.cos(animTick * 1.9) * 3.5 * motionAmp;
+  const pulse = 1 + Math.sin(animTick * 3.2) * 0.05 * motionAmp + goldenEvolution * 0.08;
   const wingAngle = Math.sin(animTick * 4.8) * 16 * motionAmp;
 
-  // Lookup separate cut-out Leesplankje figure image (17 classic figures + aliases)
-  const anmFigure: AapNootMiesFigureAsset | undefined =
-    AAP_NOOT_MIES_FIGURES[w] ||
-    (w === 'schaap' ? AAP_NOOT_MIES_FIGURES['lam'] : undefined) ||
-    (w === 'vlam' ? AAP_NOOT_MIES_FIGURES['vuur'] : undefined);
-
-  const showCutoutImage = Boolean(anmFigure && anmFigureMode !== 'vector');
+  // ALWAYS render the transparent Alpha-Channel WebP Leesplankje figure + 1960s Motion-Lamp when anmFigure exists!
+  const showCutoutImage = Boolean(anmFigure);
   const showVectorArt = !anmFigure || anmFigureMode !== 'photo';
-  const imgW = anmFigure?.isLandscape ? 148 : 106;
-  const imgH = anmFigure?.isLandscape ? 88 : 96;
+  const imgW = anmFigure?.isLandscape ? 154 : 118;
+  const imgH = anmFigure?.isLandscape ? 92 : 98;
   const imgX = -imgW / 2;
   const imgY = -imgH / 2;
   const frameDashOffset = Math.round(440 * (1 - drawProgress));
@@ -737,8 +758,8 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible"
       style={{
         opacity: level === 0
-          ? Math.max(0.32, effectiveAliveness * 0.72)
-          : Math.min(0.94, (showCutoutImage ? 0.24 : 0) + effectiveAliveness * 0.64 + goldenEvolution * 0.26),
+          ? Math.max(0.45, effectiveAliveness * 0.85)
+          : Math.min(0.98, (showCutoutImage ? 0.68 : 0.25) + effectiveAliveness * 0.30 + goldenEvolution * 0.20),
         transition: 'opacity 0.2s linear'
       }}
     >
@@ -777,22 +798,22 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       </defs>
 
       {/* Ambient Aura */}
-      <ellipse cx="100" cy="70" rx={76 * pulse} ry={50 * pulse} fill={`url(#glow-${w})`} />
+      <ellipse cx="100" cy="54" rx={76 * pulse} ry={46 * pulse} fill={`url(#glow-${w})`} />
 
       {/* CUT-OUT ALPHA WEBP AAP-NOOT-MIES FIGURE + SUBTLE 1960s MOTION-LAMP UNDERLAY */}
       {showCutoutImage && anmFigure && (
         <g
-          transform={`translate(${(100 + sway * 0.45).toFixed(2)}, ${(70 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.90 + effectiveAliveness * 0.12 + goldenEvolution * 0.08).toFixed(3)})`}
+          transform={`translate(${(100 + sway * 0.45).toFixed(2)}, ${(53 + bob * 0.55).toFixed(2)}) rotate(${(sway * 0.36).toFixed(2)}) scale(${(0.96 + effectiveAliveness * 0.08 + goldenEvolution * 0.08).toFixed(3)})`}
         >
           <g
             clipPath={`url(#anm-clip-${w})`}
-            opacity={Math.min(0.98, 0.34 + effectiveAliveness * 0.50 + goldenEvolution * 0.16)}
+            opacity={Math.min(1, 0.78 + effectiveAliveness * 0.20 + goldenEvolution * 0.10)}
           >
             {/* 1960s Motion-Lamp Base Chamber */}
             <rect x={imgX} y={imgY} width={imgW} height={imgH} fill={`url(#lamp-warm-back-${w})`} />
 
             {/* Subtle 1960s Liquid Oil-Lamp Rising & Morphing Thermal Wax Blobs Behind Alpha WebP */}
-            <g opacity={Math.min(0.88, 0.38 + effectiveAliveness * 0.32 + goldenEvolution * 0.24)}>
+            <g opacity={Math.min(0.92, 0.55 + effectiveAliveness * 0.25 + goldenEvolution * 0.20)}>
               <ellipse
                 cx={blob1X.toFixed(2)}
                 cy={blob1Y.toFixed(2)}
@@ -825,9 +846,8 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
               y={imgY}
               width={imgW}
               height={imgH}
-              preserveAspectRatio="xMidYMid slice"
+              preserveAspectRatio="xMidYMid meet"
             />
-            <rect x={imgX} y={imgY} width={imgW} height={imgH} fill={`url(#anm-vignette-${w})`} />
           </g>
 
           {/* Self-Drawing Ligne-Claire Montessori Frame around Cut-Out Figure */}
@@ -896,7 +916,7 @@ const CellSvgUnderlay: React.FC<CellSvgUnderlayProps> = ({
       {/* 17 ICONIC CORNELIS JETSES / HOOGEVEEN LEESPLANKJE HOMAGE FIGURES   */}
       {/* ================================================================== */}
       {showVectorArt && (
-      <g opacity={showCutoutImage ? (0.42 + goldenEvolution * 0.38) : 1}>
+      <g opacity={showCutoutImage ? (anmFigureMode === 'vector' ? 0.35 : 0.16 + goldenEvolution * 0.22) : 1}>
 
       {/* 1. AAP: Monkey sitting on wooden perch holding fruit with curling tail */}
       {kind === 'jetses_aap' && (
@@ -3650,6 +3670,7 @@ export default function RTTutor() {
     if (mode === 'aapnootmies') {
       setLanguage('nl');
       localStorage.setItem('tutor_lang', 'nl');
+      setAnmFigureMode('hybrid');
       setTutorEmotion('EAGER');
     }
     setTimeout(() => generateRound(level, streak, mode), 40);
@@ -4249,7 +4270,7 @@ export default function RTTutor() {
                     ? `0 0 ${Math.round(28 * goldenGlowIntensity)}px rgba(245, 158, 11, ${0.35 * goldenGlowIntensity})`
                     : undefined
                 }}
-                className="relative group overflow-hidden h-32 sm:h-40 md:h-44 rounded-2xl sm:rounded-3xl border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex items-center justify-center text-3xl sm:text-5xl md:text-6xl font-bold transition-colors active:scale-95"
+                className="relative group overflow-hidden h-40 sm:h-48 md:h-52 rounded-2xl sm:rounded-3xl border-4 border-slate-700 bg-slate-800/95 text-slate-100 hover:border-slate-500 hover:bg-slate-750 shadow-xl flex flex-col items-center justify-end pb-2 sm:pb-2.5 text-2xl sm:text-4xl md:text-5xl font-bold transition-colors active:scale-95"
               >
                 {/* Evolving Cut-Out Figure + Line-Art SVG Underlay (Reacts to Golden Cell Hover!) */}
                 <CellSvgUnderlay
@@ -4286,8 +4307,8 @@ export default function RTTutor() {
                   </svg>
                 )}
 
-                {/* Progressive Orthographic Character Highlighting */}
-                <div className="relative z-10 flex tracking-wide drop-shadow px-3.5 py-1 rounded-2xl bg-slate-900/60 backdrop-blur-[1.5px] border border-slate-700/40">
+                {/* Classic Leesplankje Bottom Word Label with Progressive Orthographic Highlighting */}
+                <div className="relative z-10 flex tracking-wide drop-shadow px-3.5 py-0.5 rounded-xl bg-slate-950/75 backdrop-blur-[1px] border border-amber-500/25 shadow-md">
                   {renderWordWithSmartColors(word, currentRound.target)}
                 </div>
               </button>
